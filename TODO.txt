@@ -1,0 +1,10 @@
+1. Data Aquisition
+- write draft of APIs - #done
+- convert drafts to functions and wrap them to .py file
+- organize the repository
+- download the data and save locally (stick to 2025 for now)
+
+2. Data Processing
+- prepare matching
+- match the datasets
+- ...
