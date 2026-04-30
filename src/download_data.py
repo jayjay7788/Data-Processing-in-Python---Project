@@ -42,7 +42,7 @@ def get_chmi_weather_stations_metadata(out_path="data/raw/chmi_weather_stations_
     }
     resp = requests.get(f"{url}{route}", headers=headers, timeout=60)
     resp.raise_for_status()
-    response = response.json()
+    response = resp.json()
     data_response = response.get('data', {}).get('data', {})
     headers = data_response.get('header', '').split(',')
     values = data_response.get('values', [])
@@ -60,7 +60,7 @@ def get_chmi_weather_variables_metadata(out_path="data/raw/chmi__weather_variabl
     }
     resp = requests.get(f"{url}{route}", headers=headers, timeout=60)
     resp.raise_for_status()
-    response = response.json()
+    response = resp.json()
     data_response = response.get('data', {}).get('data', {})
     headers = data_response.get('header', '').split(',')
     values = data_response.get('values', [])
@@ -70,7 +70,7 @@ def get_chmi_weather_variables_metadata(out_path="data/raw/chmi__weather_variabl
     return df
 
 # CHMI weather data (10min)
-def get_chmi_weather_data(start_year=2025, end_year=2025, wsi_csv="wsi_dict.csv", out_path="data/raw/weather_data_10min.csv"):
+def get_chmi_weather_data(start_year=2025, end_year=2025, wsi_csv="data/raw/wsi_dict.csv", out_path="data/raw/weather_data_10min.csv"):
     base_url = "https://opendata.chmi.cz/"
     route_template = "/meteorology/climate/historical/data/10min/{year}/10m-{wsi}-{ym}.json"
     url_header = {
