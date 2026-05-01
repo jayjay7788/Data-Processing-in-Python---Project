@@ -111,7 +111,7 @@ def get_chmi_weather_data(start_year=2025, end_year=2025, wsi_csv = RAW_DIR / "w
     return df
 
 # CHMI air quality CSV downloader
-def download_latest_data(data_dir_url="https://opendata.chmi.cz/air_quality/recent/data/", out_path: Path|str = RAW_DIR / "airquality_CHMI_stations_data.csv"):
+def download_air_quality_data(data_dir_url="https://opendata.chmi.cz/air_quality/recent/data/", out_path: Path|str = RAW_DIR / "airquality_CHMI_stations_data.csv"):
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     resp = requests.get(data_dir_url, timeout=60)
@@ -129,7 +129,7 @@ def download_latest_data(data_dir_url="https://opendata.chmi.cz/air_quality/rece
     df_data.to_csv(out_path, index=False, encoding="utf-8-sig")
     return df_data
 
-def download_metadata(metadata_url="https://opendata.chmi.cz/air_quality/recent/metadata/metadata.json", out_path: Path|str = RAW_DIR / "airquality_CHMI_stations_metadata.csv"):
+def download_air_quality_metadata(metadata_url="https://opendata.chmi.cz/air_quality/recent/metadata/metadata.json", out_path: Path|str = RAW_DIR / "airquality_CHMI_stations_metadata.csv"):
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     resp = requests.get(metadata_url, timeout=60)
