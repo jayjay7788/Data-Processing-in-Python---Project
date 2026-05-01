@@ -135,6 +135,8 @@ def download_metadata(metadata_url, out_path="data/raw/airquality_CHMI_stations_
     mapping_list = []
     localities = metadata.get("data", {}).get("Localities", [])
     for locality in localities:
+        loc_code = locality.get("LocalityCode", {})
+        loc_name = locality.get("Name", {})
         loc = locality.get("Localization", {})
         lon = loc.get("LonAsNumber")
         lat = loc.get("LatAsNumber")
@@ -150,6 +152,8 @@ def download_metadata(metadata_url, out_path="data/raw/airquality_CHMI_stations_
                 row = {
                     "id_registration": measurement.get("IdRegistration"),
                     "station_code": station_code,
+                    "locality_code": loc_code,
+                    "locality_name": loc_name,
                     "street": street,
                     "city": city,
                     "lon": lon,
