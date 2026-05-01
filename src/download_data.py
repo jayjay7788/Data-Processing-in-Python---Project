@@ -77,6 +77,7 @@ def get_chmi_weather_data(start_year=2025, end_year=2025, wsi_csv="data/raw/wsi_
         "accept": "application/json",
         "User-Agent": "JEM207 DataProcessingCourse (Educational access; contact: 19658413@fsv.cuni.cz)",
     }
+    # we set to dowload only data from selected stations to not get unnecessary big dataset
     wsi_dict = pd.read_csv(wsi_csv, encoding="utf-8-sig").set_index("key")["value"].to_dict()
     years = [f"{y}" for y in range(start_year, end_year + 1)]
     months = [f"{m:02d}" for m in range(1, 13)]
