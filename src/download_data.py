@@ -11,17 +11,11 @@ import numpy as np
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
-# utility
-def print_json_structure(obj, indent=0):
-    pad = "  " * indent
-    if isinstance(obj, dict):
-        for key, value in obj.items():
-            print(f"{pad}{key}: {type(value).__name__}")
-            print_json_structure(value, indent + 1)
-    elif isinstance(obj, list):
-        print(f"{pad}[list] len={len(obj)}")
-        if obj:
-            print_json_structure(obj[0], indent + 1)
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]  # src/ -> project root
+RAW_DIR = PROJECT_ROOT / "data" / "raw"
+
 
 # API key
 def set_api_key(token="api_key.env"):
@@ -34,7 +28,9 @@ def set_api_key(token="api_key.env"):
     return api_key
 
 # CHMI weather metadata
-def get_chmi_weather_stations_metadata(out_path="data/raw/chmi_weather_stations_metadata.csv"):
+def get_chmi_weather_stations_metadata(out_path: Path|str = RAW_DIR / "chmi_weather_stations_metadata.csv"):
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     url = "https://opendata.chmi.cz/"
     route = "/meteorology/climate/historical/metadata/meta1.json"
     headers = {
@@ -48,11 +44,12 @@ def get_chmi_weather_stations_metadata(out_path="data/raw/chmi_weather_stations_
     headers = data_response.get('header', '').split(',')
     values = data_response.get('values', [])
     df = pd.DataFrame(values, columns=headers)
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
     return df
 
-def get_chmi_weather_variables_metadata(out_path="data/raw/chmi__weather_variables_metadata.csv"):
+def get_chmi_weather_variables_metadata(out_path: Path|str = RAW_DIR / "chmi__weather_variables_metadata.csv"):
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     url = "https://opendata.chmi.cz/"
     route = "/meteorology/climate/historical/metadata/meta2.json"
     headers = {
@@ -66,12 +63,13 @@ def get_chmi_weather_variables_metadata(out_path="data/raw/chmi__weather_variabl
     headers = data_response.get('header', '').split(',')
     values = data_response.get('values', [])
     df = pd.DataFrame(values, columns=headers)
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
     return df
 
 # CHMI weather data (10min)
-def get_chmi_weather_data(start_year=2025, end_year=2025, wsi_csv="data/raw/wsi_dict.csv", out_path="data/raw/weather_data_10min.csv"):
+def get_chmi_weather_data(start_year=2025, end_year=2025, wsi_csv = RAW_DIR / "wsi_dict.csv", out_path: Path|str = RAW_DIR / "weather_data_10min.csv"):
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     base_url = "https://opendata.chmi.cz/"
     route_template = "/meteorology/climate/historical/data/10min/{year}/10m-{wsi}-{ym}.json"
     url_header = {
@@ -109,12 +107,13 @@ def get_chmi_weather_data(start_year=2025, end_year=2025, wsi_csv="data/raw/wsi_
     if not results:
         return pd.DataFrame()
     df = pd.concat(results, ignore_index=True)
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
     return df
 
 # CHMI air quality CSV downloader
-def download_latest_data(data_dir_url, out_path="data/raw/airquality_CHMI_stations_data.csv"):
+def download_latest_data(data_dir_url="https://opendata.chmi.cz/air_quality/recent/data/", out_path: Path|str = RAW_DIR / "airquality_CHMI_stations_data.csv"):
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     resp = requests.get(data_dir_url, timeout=60)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -127,11 +126,12 @@ def download_latest_data(data_dir_url, out_path="data/raw/airquality_CHMI_statio
     data_response = requests.get(file_url)
     data_response.raise_for_status()
     df_data = pd.read_csv(io.StringIO(data_response.text))
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     df_data.to_csv(out_path, index=False, encoding="utf-8-sig")
     return df_data
 
-def download_metadata(metadata_url, out_path="data/raw/airquality_CHMI_stations_metadata.csv"):
+def download_metadata(metadata_url="https://opendata.chmi.cz/air_quality/recent/metadata/metadata.json", out_path: Path|str = RAW_DIR / "airquality_CHMI_stations_metadata.csv"):
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     resp = requests.get(metadata_url, timeout=60)
     resp.raise_for_status()
     metadata = resp.json()
@@ -168,12 +168,13 @@ def download_metadata(metadata_url, out_path="data/raw/airquality_CHMI_stations_
                 }
                 mapping_list.append(row)
     df_mapping = pd.DataFrame(mapping_list)
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     df_mapping.to_csv(out_path, index=False, encoding="utf-8-sig")
     return df_mapping
 
 # Golemio airquality metadata
-def get_airquality_stations_metadata(api_key, out_path="data/raw/airquality_stations_metadata.csv"):
+def get_airquality_stations_metadata(api_key, out_path: Path|str = RAW_DIR / "airquality_stations_metadata.csv"):
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     url = "https://api.golemio.cz/"
     route = "/v2/airqualitystations"
     headers = {
@@ -188,15 +189,34 @@ def get_airquality_stations_metadata(api_key, out_path="data/raw/airquality_stat
     tmp = df.explode("properties.measurement.components", ignore_index=True)
     dirs = pd.json_normalize(tmp["properties.measurement.components"]).add_prefix("properties.measurement.components.")
     df = pd.concat([tmp.drop(columns=["properties.measurement.components"]), dirs], axis=1)
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
     return df
 
 
 # dictionaries
 
-def build_and_save_wsi_dict(df_chmi, out_path="data/raw/wsi_dict.csv"):
-    wsi_dict = dict(zip(df_chmi["WSI"].astype(str), df_chmi["FULL_NAME"].astype(str)))
-    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+# this need to run after dowloading metadata dn before downloading data 
+
+def build_and_save_wsi_dict(stations_metadata_csv=RAW_DIR / "chmi_stations_metadata.csv", out_path=RAW_DIR / "wsi_dict.csv"):
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    df = pd.read_csv(stations_metadata_csv)
+    df = df[df['FULL_NAME'].str.contains('Praha', case=False, na=False)]
+    wsi_to_drop = [
+        '0-203-0-11201020001', #Praha, Vinohrady - Flora	
+        '0-203-0-11202007001', #Praha, Suchdol
+        '0-203-0-11105048001', #Praha, Zadní Kopanina
+        '0-203-0-11201020003' #Praha, Chodov
+        ]
+    df = df[~df['WSI'].isin(wsi_to_drop)]
+    df["END_DATE_DT"] = pd.to_datetime(df["END_DATE"], utc=True, errors="coerce")
+    df = (
+        df.sort_values("END_DATE_DT")
+        .drop_duplicates(subset="WSI", keep="last")
+    )
+    now_utc = pd.Timestamp.now(tz="UTC")
+    df = df[(df["END_DATE_DT"] >= now_utc)]
+
+    wsi_dict = dict(zip(df["WSI"].astype(str), df["FULL_NAME"].astype(str)))
     pd.DataFrame(list(wsi_dict.items()), columns=["key","value"]).to_csv(out_path, index=False, encoding="utf-8-sig")
     return wsi_dict
