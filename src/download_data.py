@@ -3,10 +3,11 @@ import os
 import json
 import io
 import csv
+import requests
+import time
 
 import pandas as pd
 import numpy as np
-import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
@@ -88,7 +89,8 @@ def get_chmi_weather_data(start_year=2025, end_year=2025, wsi_csv="data/raw/wsi_
                 ym = f"{year}{month}"
                 route = route_template.format(year=year, wsi=wsi, ym=ym)
                 try:
-                    response = requests.get(f"{base_url}{route}", headers=url_header, timeout=60)
+                    time.sleep(0.5)
+                    response = requests.get(f"{base_url}{route}", headers=url_header, timeout=90)
                     response.raise_for_status()
                 except requests.exceptions.RequestException as exc:
                     print(f"Request failed for {wsi} {wsi_dict.get(wsi)} {year} {month}: {exc}")
