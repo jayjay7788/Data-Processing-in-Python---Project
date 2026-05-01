@@ -13,13 +13,22 @@ RAW_DIR = PROJECT_ROOT / "data" / "raw"
 
 wsi_csv = RAW_DIR / "wsi_dict.csv"
 
-then use in functions
+then use in functions RAW_DIR wsi_csv = RAW_DIR / "wsi_dict.csv"
 
 - include exploratoly cells to API notebook, such as json structure etc., to have better exploration
 
-RAW_DIR wsi_csv = RAW_DIR / "wsi_dict.csv"
 
 2. Data Processing
-- prepare matching
-- match the datasets
+- prepare matching #done
+- match the datasets #done
+
+- prepare matching between air quality and weather stations, base on some spatial metric of how close they are
+    - then create a mapping fo weather ad air quality stations, then merge the datasets 
+
+- ...
+
+3. Exlporatory analysis
+- ...
+
+4. Implementation and Visualization
 - ...
