@@ -3,19 +3,8 @@
 - convert drafts to functions and wrap them to .py file - #done
 - organize the repository - #done
 - download the data and save locally (stick to 2025 for now) - #done
--------
-- in download_data.py set root directory as relative path, such as
-
-from pathlib import Path
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]  # src/ -> project root
-RAW_DIR = PROJECT_ROOT / "data" / "raw"
-
-wsi_csv = RAW_DIR / "wsi_dict.csv"
-
-then use in functions RAW_DIR wsi_csv = RAW_DIR / "wsi_dict.csv"
-
-- include exploratoly cells to API notebook, such as json structure etc., to have better exploration
+- in download_data.py set root directory as relative path #done
+- include exploratoly cells to API notebook, such as json structure, head, etc. #done
 
 
 2. Data Processing
