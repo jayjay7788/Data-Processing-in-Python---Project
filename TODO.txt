@@ -16,8 +16,21 @@
 
 - ...
 
-3. Exlporatory analysis
-- ...
+3. Exploratory analysis
+- clean the data and agree on frequency - create hourly/daily averages?
+- inspect the relationships between pollution indiators and meteorological conditions:
+    - temperature, air humidity, precipitation levels and pollution levels - inspect co-movements, correlations etc.
+    - the wind rose: map the wind direction to air quality using the windrose package
+    - predictions of pollution levels given meteorological conditions - random forests?
 
 4. Implementation and Visualization
-- ...
+- heatmap: pollution levels across Prague's districts
+- wind roses: map pollution to wind directions
+- dual-axis charts: map the comovements of meteorological conditions and pollution levels
+- Interactive interface:
+    - filter disctricts to visualise the differences betweeen e.g. center, industrial locations and greener locations
+    - filter and change time and dates to observe daily and seasonal patterns
+    - what if scenarios: use predictions to show predicted pollution levels based on chosen meteorological conditions
+
+Additional tasks:
+- inspect more the relevant literature and collect references for observed relationships between atmpospherical conditions and pollution levels
