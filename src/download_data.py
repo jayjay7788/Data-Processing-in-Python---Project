@@ -47,7 +47,7 @@ def get_chmi_weather_stations_metadata(out_path: Path|str = RAW_DIR / "chmi_weat
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
     return df
 
-def get_chmi_weather_variables_metadata(out_path: Path|str = RAW_DIR / "chmi__weather_variables_metadata.csv"):
+def get_chmi_weather_variables_metadata(out_path: Path|str = RAW_DIR / "chmi_weather_variables_metadata.csv"):
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     url = "https://opendata.chmi.cz/"
