@@ -47,7 +47,7 @@ def get_chmi_weather_stations_metadata(out_path: Path|str = RAW_DIR / "chmi_weat
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
     return df
 
-def get_chmi_weather_variables_metadata(out_path: Path|str = RAW_DIR / "chmi__weather_variables_metadata.csv"):
+def get_chmi_weather_variables_metadata(out_path: Path|str = RAW_DIR / "chmi_weather_variables_metadata.csv"):
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     url = "https://opendata.chmi.cz/"
@@ -79,7 +79,7 @@ def get_chmi_weather_data(start_year=2025, end_year=2025, wsi_csv = RAW_DIR / "w
     # we set to dowload only data from selected stations to not get unnecessary big dataset
     wsi_dict = pd.read_csv(wsi_csv, encoding="utf-8-sig").set_index("key")["value"].to_dict()
     years = [f"{y}" for y in range(start_year, end_year + 1)]
-    months = [f"{m:02d}" for m in range(1, 13)]
+    months = [11] #[f"{m:02d}" for m in range(1, 13)]
     results = []
     for wsi in wsi_dict:
         for year in years:
@@ -197,26 +197,36 @@ def get_airquality_stations_metadata(api_key, out_path: Path|str = RAW_DIR / "ai
 
 # this need to run after dowloading metadata dn before downloading data 
 
-def build_and_save_wsi_dict(stations_metadata_csv=RAW_DIR / "chmi_stations_metadata.csv", out_path=RAW_DIR / "wsi_dict.csv"):
+def build_and_save_wsi_dict(
+    stations_metadata_csv=RAW_DIR / "chmi_weather_stations_metadata.csv",
+    out_path=RAW_DIR / "wsi_dict.csv"
+):
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    df = pd.read_csv(stations_metadata_csv)
-    df = df[df['FULL_NAME'].str.contains('Praha', case=False, na=False)]
+    df = pd.read_csv(stations_metadata_csv, encoding="utf-8-sig")
+    # keep Prague
+    df = df[df["FULL_NAME"].str.contains("Praha", case=False, na=False)].copy()
     wsi_to_drop = [
-        '0-203-0-11201020001', #Praha, Vinohrady - Flora	
-        '0-203-0-11202007001', #Praha, Suchdol
-        '0-203-0-11105048001', #Praha, Zadní Kopanina
-        '0-203-0-11201020003' #Praha, Chodov
-        ]
-    df = df[~df['WSI'].isin(wsi_to_drop)]
-    df["END_DATE_DT"] = pd.to_datetime(df["END_DATE"], utc=True, errors="coerce")
+        "0-203-0-11201020001",
+        "0-203-0-11202007001",
+        "0-203-0-11105048001",
+        "0-203-0-11201020003",
+    ]
+    df = df[~df["WSI"].isin(wsi_to_drop)].copy()
+    # change: extract year from END_DATE instead of parsing full datetime
+    df["END_YEAR"] = df["END_DATE"].astype(str).str[:4].astype(int)
     df = (
-        df.sort_values("END_DATE_DT")
-        .drop_duplicates(subset="WSI", keep="last")
+        df.sort_values("END_YEAR", ascending=False)
+        .drop_duplicates(subset="WSI", keep="first")
     )
-    now_utc = pd.Timestamp.now(tz="UTC")
-    df = df[(df["END_DATE_DT"] >= now_utc)]
-
+    # keep active stations
+    current_year = pd.Timestamp.now().year
+    df = df[df["END_YEAR"] >= current_year].copy()
     wsi_dict = dict(zip(df["WSI"].astype(str), df["FULL_NAME"].astype(str)))
-    pd.DataFrame(list(wsi_dict.items()), columns=["key","value"]).to_csv(out_path, index=False, encoding="utf-8-sig")
+    pd.DataFrame(list(wsi_dict.items()), columns=["key", "value"]).to_csv(
+        out_path,
+        index=False,
+        encoding="utf-8-sig"
+    )
+    print(f"Saved {len(wsi_dict)} stations to {out_path}")
     return wsi_dict
