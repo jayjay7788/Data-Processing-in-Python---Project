@@ -110,6 +110,71 @@ def get_chmi_weather_data(start_year=2025, end_year=2025, wsi_csv = RAW_DIR / "w
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
     return df
 
+# CHMI weather data (1h)
+def get_chmi_weather_data_hourly(
+    start_year=2025,
+    end_year=2025,
+    wsi_csv=RAW_DIR / "wsi_dict.csv",
+    out_path: Path | str = RAW_DIR / "weather_data_1hour.csv"
+):
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    base_url = "https://opendata.chmi.cz/"
+    route_template = "/meteorology/climate/historical/data/1hour/{year}/1h-{wsi}-{ym}.json"
+    url_header = {
+        "accept": "application/json",
+        "User-Agent": "JEM207 DataProcessingCourse (Educational access)",
+    }
+    wsi_dict = (
+        pd.read_csv(wsi_csv, encoding="utf-8-sig")
+        .set_index("key")["value"]
+        .to_dict()
+    )
+    years = [f"{y}" for y in range(start_year, end_year + 1)]
+    months = [f"{m:02d}" for m in range(1, 13)]
+    results = []
+    for wsi in wsi_dict:
+        for year in years:
+            for month in months:
+                ym = f"{year}{month}"
+                route = route_template.format(year=year, wsi=wsi, ym=ym)
+                try:
+                    time.sleep(0.5)
+                    response = requests.get(
+                        f"{base_url}{route}",
+                        headers=url_header,
+                        timeout=90
+                    )
+                    response.raise_for_status()
+                except requests.exceptions.RequestException as exc:
+                    print(
+                        f"Request failed for {wsi} "
+                        f"{wsi_dict.get(wsi)} {year}-{month}: {exc}"
+                    )
+                    continue
+                response_json = response.json()
+                data_response = response_json.get("data", {}).get("data", {})
+                headers = data_response.get("header", "").split(",")
+                values = data_response.get("values", [])
+                if not values:
+                    print(f"No data for {wsi} {wsi_dict.get(wsi)} {year}-{month}")
+                    continue
+                df_part = pd.DataFrame(values, columns=headers)
+                df_part["WSI"] = wsi
+                df_part["YEAR"] = year
+                df_part["MONTH"] = month
+                results.append(df_part)
+                print(
+                    f"Loaded {wsi} {wsi_dict.get(wsi)} "
+                    f"{year}-{month}: {len(df_part)} rows"
+                )
+    if not results:
+        return pd.DataFrame()
+    df = pd.concat(results, ignore_index=True)
+    df.to_csv(out_path, index=False, encoding="utf-8-sig")
+
+    return df
+
 # CHMI air quality CSV downloader
 def download_airquality_data(data_dir_url="https://opendata.chmi.cz/air_quality/recent/data/", out_path: Path|str = RAW_DIR / "airquality_CHMI_stations_data.csv"):
     out_path = Path(out_path)
@@ -126,6 +191,70 @@ def download_airquality_data(data_dir_url="https://opendata.chmi.cz/air_quality/
     data_response = requests.get(file_url)
     data_response.raise_for_status()
     df_data = pd.read_csv(io.StringIO(data_response.text))
+    df_data.to_csv(out_path, index=False, encoding="utf-8-sig")
+    return df_data
+
+# CHMI air quality CSV downloader full time period
+def download_airquality_data_period(
+    start_year=2025,
+    end_year=2025,
+    months=None, #[11]
+    data_dir_url="https://opendata.chmi.cz/air_quality/recent/data/",
+    out_path: Path|str = RAW_DIR / "airquality_CHMI_1hour.csv",
+    ids_to_keep=None
+):
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    resp = requests.get(data_dir_url, timeout=60)
+    resp.raise_for_status()
+    soup = BeautifulSoup(resp.text, "html.parser")
+    csv_files = [
+        link.get("href")
+        for link in soup.find_all("a")
+        if link.get("href", "").endswith(".csv")
+    ]
+    if not csv_files:
+        raise FileNotFoundError("No CSV files found in the directory.")
+    years = [f"{y}" for y in range(start_year, end_year + 1)]
+    if months is None:
+        months = [f"{m:02d}" for m in range(1, 13)]
+    else:
+        months = [f"{int(m):02d}" for m in months]
+    file_prefixes = [
+        f"airquality_1h_avg_CZ_{year}{month}"
+        for year in years
+        for month in months
+    ]
+    files_period = [
+        file for file in csv_files
+        if any(file.startswith(prefix) for prefix in file_prefixes)
+    ]
+    files_period = sorted(files_period)
+    if not files_period:
+        raise FileNotFoundError(
+            f"No air-quality CSV files found for years {start_year}-{end_year} and months {months}."
+        )
+    print(f"Found {len(files_period)} hourly air-quality files.")
+    results = []
+    for i, file in enumerate(files_period, start=1):
+        file_url = f"{data_dir_url}{file}"
+        try:
+            time.sleep(0.1)
+            data_response = requests.get(file_url, timeout=60)
+            data_response.raise_for_status()
+        except requests.exceptions.RequestException as exc:
+            print(f"Request failed for {file}: {exc}")
+            continue
+        df_part = pd.read_csv(io.StringIO(data_response.text))
+        if ids_to_keep is not None:
+            df_part = df_part[df_part["idRegistration"].isin(ids_to_keep)].copy()
+        if df_part.empty:
+            continue
+        df_part["source_file"] = file
+        results.append(df_part)
+    if not results:
+        return pd.DataFrame()
+    df_data = pd.concat(results, ignore_index=True)
     df_data.to_csv(out_path, index=False, encoding="utf-8-sig")
     return df_data
 
