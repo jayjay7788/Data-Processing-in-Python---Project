@@ -11,10 +11,11 @@
 - prepare matching #done
 - match the datasets #done
 
-- prepare matching between air quality and weather stations, base on some spatial metric of how close they are
-    - then create a mapping fo weather ad air quality stations, then merge the datasets 
+- prepare matching between air quality and weather stations, base on some spatial metric of how close they are # done
+    - then create a mapping fo weather ad air quality stations, then merge the datasets # done
 
-- ...
+- decide whether to keep duplicate location matching or only closest per station
+- clean datasets - drop cols, check NA (lot of miss values are negative), etc.
 
 3. Exploratory analysis
 - clean the data and agree on frequency - create hourly/daily averages?
