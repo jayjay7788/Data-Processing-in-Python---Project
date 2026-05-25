@@ -14,20 +14,23 @@
 - prepare matching between air quality and weather stations, base on some spatial metric of how close they are # done
     - then create a mapping fo weather ad air quality stations, then merge the datasets # done
 
-- decide whether to keep duplicate location matching or only closest per station
+- decide whether to keep duplicate location matching or only closest per station - we need to decide which stations to keep and which to drop, some are very far, or maybe some aggregation?
 - clean datasets - drop cols, check NA (lot of miss values are negative), etc. # done
 
+- so far we ahve only one month data, later we should extend it to longer time frame, e.g. two years?
+
 3. Exploratory analysis
-- clean the data and agree on frequency - create hourly/daily averages?
+- clean the data and agree on frequency - create hourly/daily averages? - maybe both, like hourly for modelling and daily for visualizations?
 - inspect the relationships between pollution indiators and meteorological conditions:
     - temperature, air humidity, precipitation levels and pollution levels - inspect co-movements, correlations etc.# done
     - the wind rose: map the wind direction to air quality using the windrose package
-    - predictions of pollution levels given meteorological conditions - random forests?
+    - predictions of pollution levels given meteorological conditions - random forests? #draft
     3.1 prepare set of explanatory variables
         - visualise data to observe general patterns: rush hours, location effects, correlation matrix
         - prepare laggs
         - convert wind direction to wind vectors
         - dummies or categorical variables to location specifics: industrial zone, close to transport, green spaces, ...
+
 4. Implementation and Visualization
 - heatmap: pollution levels across Prague's districts
 - wind roses: map pollution to wind directions
