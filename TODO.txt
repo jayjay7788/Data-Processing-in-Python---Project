@@ -24,9 +24,10 @@
 3. Exploratory analysis
 - clean the data and agree on frequency - create hourly/daily averages? - maybe both, like hourly for modelling and daily for visualizations?
 - inspect the relationships between pollution indiators and meteorological conditions:
-    - temperature, air humidity, precipitation levels and pollution levels - inspect co-movements, correlations etc.# done
-    - the wind rose: map the wind direction to air quality using the windrose package
+    - temperature, air humidity, precipitation levels and pollution levels - inspect co-movements, correlations etc. # done
+    - the wind rose: map the wind direction to air quality using the windrose package #draft
     - predictions of pollution levels given meteorological conditions - random forests? #draft
+    
     3.1 prepare set of explanatory variables
         - visualise data to observe general patterns: rush hours, location effects, correlation matrix
         - prepare laggs
