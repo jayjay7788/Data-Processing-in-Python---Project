@@ -19,6 +19,8 @@
 
 - so far we ahve only one month data, later we should extend it to longer time frame, e.g. two years?
 
+- check whether .py script aligns with notebook (change in data filtering)
+
 3. Exploratory analysis
 - clean the data and agree on frequency - create hourly/daily averages? - maybe both, like hourly for modelling and daily for visualizations?
 - inspect the relationships between pollution indiators and meteorological conditions:
