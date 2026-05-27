@@ -23,11 +23,14 @@
     - then create a mapping fo weather ad air quality stations, then merge the datasets # done
 
 - decide whether to keep duplicate location matching or only closest per station - we need to decide which stations to keep and which to drop, some are very far, or maybe some aggregation?
+    - it seems that it should be acceptable to keep stations in radius <5 km, for our case, we will drop 4 air stations
 - clean datasets - drop cols, check NA (lot of miss values are negative), etc. # done
 
-- so far we ahve only one month data, later we should extend it to longer time frame, e.g. two years?
+- so far we ahve only one month data, later we should extend it to longer time frame, e.g. two years? - we will stick to 2025 only ?
 
 - check whether .py script aligns with notebook (change in data filtering)
+
+- write .py script for data processing, from the notebook, create separate notebook with visualizations and data analysis 
 
 3. Exploratory analysis
 - clean the data and agree on frequency - create hourly/daily averages? - maybe both, like hourly for modelling and daily for visualizations?
@@ -51,5 +54,11 @@
     - filter and change time and dates to observe daily and seasonal patterns
     - what if scenarios: use predictions to show predicted pollution levels based on chosen meteorological conditions
 
+- estimate the models amd save outputs using joblib package, then use in the dashboard
+
+- drafted the app_draft.py for interactive dashboard, looks good
+
 Additional tasks:
 - inspect more the relevant literature and collect references for observed relationships between atmpospherical conditions and pollution levels
+
+- clean the notebooks and keep only needed cells
