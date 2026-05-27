@@ -6,6 +6,14 @@
 - in download_data.py set root directory as relative path #done
 - include exploratoly cells to API notebook, such as json structure, head, etc. #done
 
+- to make it comprehensive and for some time period, I would suggest to focus only on year 2025
+    - also the data aquasition will be more straightforward (2026 weather data in different folder)
+    - then we can make the interpretation just like "based on 2025 data" and the analysis will be limited to data 2025 only
+
+- download data for 2025
+
+- I understand that the data are converted to hourly not by averaging but by taking only observations taken in the specific time (e.g. 9:00)
+
 
 2. Data Processing
 - prepare matching #done
