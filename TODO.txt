@@ -27,10 +27,9 @@
 - clean datasets - drop cols, check NA (lot of miss values are negative), etc. # done
 
 - so far we ahve only one month data, later we should extend it to longer time frame, e.g. two years? - we will stick to 2025 only ?
-
 - check whether .py script aligns with notebook (change in data filtering)
-
 - write .py script for data processing, from the notebook, create separate notebook with visualizations and data analysis 
+- the wsi_dict is problematic as it is written based on the metadata that we dowload but then the actual data are dowloaded based on the dict, thus one have to first update the dict
 
 3. Exploratory analysis
 - clean the data and agree on frequency - create hourly/daily averages? - maybe both, like hourly for modelling and daily for visualizations?
