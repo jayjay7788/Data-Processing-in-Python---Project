@@ -1,4 +1,5 @@
-1. Data Aquisition
+1. *** Data Aquisition ***
+
 - write draft of APIs - #done
 - convert drafts to functions and wrap them to .py file - #done
 - organize the repository - #done
@@ -15,7 +16,7 @@
 - I understand that the data are converted to hourly not by averaging but by taking only observations taken in the specific time (e.g. 9:00)
 
 
-2. Data Processing
+2. *** Data Processing ***
 - prepare matching #done
 - match the datasets #done
 
@@ -23,15 +24,14 @@
     - then create a mapping fo weather ad air quality stations, then merge the datasets # done
 
 - decide whether to keep duplicate location matching or only closest per station - we need to decide which stations to keep and which to drop, some are very far, or maybe some aggregation?
-    - it seems that it should be acceptable to keep stations in radius <5 km, for our case, we will drop 4 air stations
+    - it seems that it should be acceptable to keep stations in radius <5 km, for our case, we will drop 4 air stations # done
 - clean datasets - drop cols, check NA (lot of miss values are negative), etc. # done
 
-- so far we ahve only one month data, later we should extend it to longer time frame, e.g. two years? - we will stick to 2025 only ?
 - check whether .py script aligns with notebook (change in data filtering)
 - write .py script for data processing, from the notebook, create separate notebook with visualizations and data analysis 
 - the wsi_dict is problematic as it is written based on the metadata that we dowload but then the actual data are dowloaded based on the dict, thus one have to first update the dict
 
-3. Exploratory analysis
+3. *** Exploratory analysis ***
 - clean the data and agree on frequency - create hourly/daily averages? - maybe both, like hourly for modelling and daily for visualizations?
 - inspect the relationships between pollution indiators and meteorological conditions:
     - temperature, air humidity, precipitation levels and pollution levels - inspect co-movements, correlations etc. # done
@@ -44,14 +44,33 @@
         - convert wind direction to wind vectors #draft ? cell 86
         - dummies or categorical variables to location specifics: industrial zone, close to transport, green spaces, ...
 
-4. Implementation and Visualization
-- heatmap: pollution levels across Prague's districts
+4. *** Implementation and Visualization ***
 - wind roses: map pollution to wind directions
 - dual-axis charts: map the comovements of meteorological conditions and pollution levels
-- Interactive interface:
-    - filter disctricts to visualise the differences betweeen e.g. center, industrial locations and greener locations
-    - filter and change time and dates to observe daily and seasonal patterns
-    - what if scenarios: use predictions to show predicted pollution levels based on chosen meteorological conditions
+
+-------------------
+    *** VISUALS TO BE USED AS OUTPUT IN THE FINAL PROJECT ***
+
+1. DESCRIPTIVE
+
+    - *time vs air pollutants*:
+        - user will be able to modify the period, the window/data frequency, the pollutant and possibly the station
+
+    - *time vs meteorological covariates*:
+        - user will be able to modify the period, the window/data frequency, the pollutant and possibly the station
+
+    - *co-movements of air pollutants and chosen meteorological covariates*:
+        -  user will be able to modify the period, the window/data frequency, the pollutant and meteorological data and possibly the station
+
+    - ?wind direction mapping?:
+        - is it really possible with the limited data?
+
+2. BASED ON THE MODEL
+
+    - ?predictions for chosen parameters?:
+        - predictions based on pre-defined parameters (hour, date, meteorological conditions, ...) with confidence intervals
+
+--------------------
 
 - estimate the models amd save outputs using joblib package, then use in the dashboard
 
