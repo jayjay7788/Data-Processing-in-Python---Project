@@ -15,6 +15,7 @@
 
 - I understand that the data are converted to hourly not by averaging but by taking only observations taken in the specific time (e.g. 9:00)
 
+- rename the data files
 
 2. *** Data Processing ***
 - prepare matching #done
@@ -45,7 +46,7 @@
         - dummies or categorical variables to location specifics: industrial zone, close to transport, green spaces, ...
 
 4. *** Implementation and Visualization ***
-- wind roses: map pollution to wind directions
+- wind roses: map pollution to wind directions #draft done
 - dual-axis charts: map the comovements of meteorological conditions and pollution levels
 
 -------------------
