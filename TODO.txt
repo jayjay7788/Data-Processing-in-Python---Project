@@ -7,13 +7,10 @@
 - in download_data.py set root directory as relative path #done
 - include exploratoly cells to API notebook, such as json structure, head, etc. #done
 
-- to make it comprehensive and for some time period, I would suggest to focus only on year 2025
-    - also the data aquasition will be more straightforward (2026 weather data in different folder)
-    - then we can make the interpretation just like "based on 2025 data" and the analysis will be limited to data 2025 only
+- to make it comprehensive and for some time period, I would suggest to focus only on year 2025 #done
+- download data for 2025 #done
 
-- download data for 2025
-
-- I understand that the data are converted to hourly not by averaging but by taking only observations taken in the specific time (e.g. 9:00)
+- I understand that the data are converted to hourly not by averaging but by taking only observations taken in the specific time (e.g. 9:00) - downloaded 10min and sggregated to 1h #done
 
 - rename the data files
 
@@ -36,18 +33,18 @@
 - clean the data and agree on frequency - create hourly/daily averages? - maybe both, like hourly for modelling and daily for visualizations?
 - inspect the relationships between pollution indiators and meteorological conditions:
     - temperature, air humidity, precipitation levels and pollution levels - inspect co-movements, correlations etc. # done
-    - the wind rose: map the wind direction to air quality using the windrose package #draft
-    - predictions of pollution levels given meteorological conditions - random forests? #draft
+    - the wind rose: map the wind direction to air quality using the windrose package #done
+    - predictions of pollution levels given meteorological conditions - random forests? #done
 
     3.1 prepare set of explanatory variables
         - visualise data to observe general patterns: rush hours, location effects, correlation matrix #drafted cell 77
         - prepare laggs #draft ? cell 84
         - convert wind direction to wind vectors #draft ? cell 86
-        - dummies or categorical variables to location specifics: industrial zone, close to transport, green spaces, ...
+        - dummies or categorical variables to location specifics: industrial zone, close to transport, green spaces, ???
 
 4. *** Implementation and Visualization ***
-- wind roses: map pollution to wind directions #draft done
-- dual-axis charts: map the comovements of meteorological conditions and pollution levels
+- wind roses: map pollution to wind directions #done
+- dual-axis charts: map the comovements of meteorological conditions and pollution levels #done
 
 -------------------
     *** VISUALS TO BE USED AS OUTPUT IN THE FINAL PROJECT ***
