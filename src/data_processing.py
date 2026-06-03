@@ -18,13 +18,10 @@ import pandas as pd
 import numpy as np
 
 import warnings
-try:
-    import geopandas as gpd
-    from shapely.geometry import LineString
-except ImportError:
-    gpd = None
-    LineString = None
-    warnings.warn("geopandas/shapely not installed — geospatial features disabled")
+
+import geopandas as gpd
+from shapely.geometry import LineString
+
 
 
 
@@ -159,16 +156,35 @@ def preprocess_and_merge_air_weather(df_air, df_weather_ext, air_stations_meta, 
 
     # build station matching
 
-    air_stations = (
-        air_stations_meta.loc[air_stations_meta["locality_name"].str.contains("Praha", case=False, na=False), ["station_code", "locality_name", "lon", "lat", "alt"]]
-        .drop_duplicates()
-        .rename(columns={"station_code": "air_station_code", "locality_name": "air_station_name", "lon": "air_lon", "lat": "air_lat", "alt": "air_alt"})
-    )
     weather_stations = (
-        df_weather_ext.loc[:, ["WSI", "FULL_NAME", "GEOGR1", "GEOGR2", "ELEVATION"]]
+        air_stations_meta
+        .loc[:, ["WSI", "FULL_NAME", "GEOGR1", "GEOGR2", "ELEVATION"]]
         .drop_duplicates()
-        .rename(columns={"WSI": "weather_station_id", "FULL_NAME": "weather_station_name", "GEOGR1": "weather_lon", "GEOGR2": "weather_lat", "ELEVATION": "weather_alt"})
+        .rename(columns={
+            "WSI": "weather_station_id",
+            "FULL_NAME": "weather_station_name",
+            "GEOGR1": "weather_lon",
+            "GEOGR2": "weather_lat",
+            "ELEVATION": "weather_alt"
+        })
     )
+
+    air_stations = (
+        air_stations_meta
+        .loc[
+            air_stations_meta["locality_name"].str.contains("Praha", case=False, na=False),
+            ["station_code", "locality_name", "lon", "lat", "alt"]
+        ]
+        .drop_duplicates()
+        .rename(columns={
+            "station_code": "air_station_code",
+            "locality_name": "air_station_name",
+            "lon": "air_lon",
+            "lat": "air_lat",
+            "alt": "air_alt"
+        })
+    )
+
     air_gdf = gpd.GeoDataFrame(air_stations, geometry=gpd.points_from_xy(air_stations["air_lon"], air_stations["air_lat"]), crs="EPSG:4326")
     weather_gdf = gpd.GeoDataFrame(weather_stations, geometry=gpd.points_from_xy(weather_stations["weather_lon"], weather_stations["weather_lat"]), crs="EPSG:4326")
     air_gdf_m = air_gdf.to_crs("EPSG:5514")
