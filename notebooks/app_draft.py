@@ -1,6 +1,14 @@
+from pathlib import Path
+import sys
+
 import streamlit as st
 import pandas as pd
-import numpy as np
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.model_wrapper import load_model_bundle, predict_bundle
 
 # Set the page configuration (Must be the first Streamlit command)
 st.set_page_config(page_title="Prague Microclimate Engine", page_icon="🌤️", layout="wide")
@@ -31,26 +39,42 @@ Move the sliders in the sidebar to simulate different atmospheric scenarios.
 
 st.divider()
 
-# Predictions
-# TODO: We will replace this function with joblib.load('your_model.pkl') later!
-def predict_pollution_dummy(w_speed, temp, hum, rain, stat):
-    # This is fake math just to make the dashboard react to your sliders today
-    base_pm10 = 45.0
-    base_no2 = 35.0
-    
-    # Simulate wind dilution (higher wind = lower pollution)
-    pm10_pred = base_pm10 - (w_speed * 2) - (rain * 3) + (hum * 0.1)
-    no2_pred = base_no2 - (w_speed * 3) - (temp * 0.2)
-    
-    # Simulate the Legerova street canyon effect
-    if "Legerova" in stat:
-        pm10_pred += 15
-        no2_pred += 25
-        
-    return max(5.0, pm10_pred), max(5.0, no2_pred) # Prevent negative numbers
+@st.cache_resource
+def get_model_bundle():
+    model_path = PROJECT_ROOT / "results" / "models"
+    return load_model_bundle(model_path)
+
+
+def predict_pollution(w_speed, temp, hum, pressure, rain, stat):
+    bundle = get_model_bundle()
+    hour = pd.Timestamp.now().hour
+    dayofweek = pd.Timestamp.now().dayofweek
+
+    input_data = pd.DataFrame([
+        {
+            "T": temp,
+            "TMA": temp + 1.0,
+            "TMI": temp - 1.0,
+            "P": pressure,
+            "H": hum,
+            "F": w_speed,
+            "Fmax": min(15.0, w_speed + 2.0),
+            "D": 0.0,
+            "Dprum": 0.0,
+            "Dmax": 0.0,
+            "SRA10M": rain,
+            "hour": hour,
+            "dayofweek": dayofweek,
+            "locality_name": stat,
+            "station_name_weather": stat,
+        }
+    ])
+
+    predictions = predict_bundle(bundle, input_data).iloc[0]
+    return float(predictions.get("air_PM10", 0.0)), float(predictions.get("air_NO2", 0.0))
 
 # Run the prediction
-pred_pm10, pred_no2 = predict_pollution_dummy(wind_speed, temperature, humidity, rain, station)
+pred_pm10, pred_no2 = predict_pollution(wind_speed, temperature, humidity, pressure, rain, station)
 
 # Display results
 st.subheader(f"Predicted Airborne Concentrations for: {station}")
@@ -77,7 +101,7 @@ with col2:
         delta_color=delta_color_no2
     )
 
-st.caption("Note: Predictions are generated in real-time based on the meteorological parameters provided in the sidebar.")
+st.caption("Note: These predictions come from the saved trained model bundle and are loaded once per session.")
 
 
 st.subheader("Prague Monitoring Network")
