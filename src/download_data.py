@@ -1,4 +1,3 @@
-import argparse
 import io
 import time
 from pathlib import Path
@@ -121,7 +120,7 @@ def download_chmi_weather_data(
                 df_part["YEAR"] = year
                 df_part["MONTH"] = month
                 results.append(df_part)
-                print(f"Loaded {wsi} {station_name} {year}-{month}: {len(df_part)} rows")
+        print(f"Loaded {wsi} {station_name}")
 
     if not results:
         return pd.DataFrame()
@@ -130,10 +129,53 @@ def download_chmi_weather_data(
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
     return df
 
+def download_airquality_metadata(metadata_url="https://opendata.chmi.cz/air_quality/recent/metadata/metadata.json",
+                                  out_path: Path|str = RAW_DIR / "airquality_CHMI_stations_metadata.csv"):
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    resp = requests.get(metadata_url, timeout=60)
+    resp.raise_for_status()
+    metadata = resp.json()
+    mapping_list = []
+    localities = metadata.get("data", {}).get("Localities", [])
+    for locality in localities:
+        loc_code = locality.get("LocalityCode", {})
+        loc_name = locality.get("Name", {})
+        loc = locality.get("Localization", {})
+        lon = loc.get("LonAsNumber")
+        lat = loc.get("LatAsNumber")
+        alt = loc.get("Alt")
+        addr = locality.get("Address", {})
+        street = addr.get("Street")
+        city = addr.get("City")
+        programs = locality.get("MeasuringPrograms", [])
+        for program in programs:
+            station_code = program.get("Code")
+            measurements = program.get("Measurements", [])
+            for measurement in measurements:
+                row = {
+                    "id_registration": measurement.get("IdRegistration"),
+                    "station_code": station_code,
+                    "locality_code": loc_code,
+                    "locality_name": loc_name,
+                    "street": street,
+                    "city": city,
+                    "lon": lon,
+                    "lat": lat,
+                    "alt": alt,
+                    "component_code": measurement.get("ComponentCode"),
+                    "component_name": measurement.get("ComponentName"),
+                    "unit": measurement.get("UnitAsASCII"),
+                }
+                mapping_list.append(row)
+    df_mapping = pd.DataFrame(mapping_list)
+    df_mapping = df_mapping[df_mapping['locality_name'].str.contains('Praha', case=False, na=False)]
+    df_mapping.to_csv(out_path, index=False, encoding="utf-8-sig")
+    return df_mapping
 
-def download_airquality_ids_dict(
+def build_and_save_air_stations_dict(
     metadata_csv: Path | str = RAW_DIR / "airquality_CHMI_stations_metadata.csv",
-    out_path: Path | str = RAW_DIR / "air_ids_dict.csv",
+    out_path: Path | str = RAW_DIR / "air_stat_dict.csv",
 ):
     out_path = _ensure_parent(out_path)
     
@@ -143,22 +185,29 @@ def download_airquality_ids_dict(
         print(f"Metadata file not found: {metadata_csv}")
         return {}
     
-    df = df[["id_registration", "locality_name"]].drop_duplicates()
+    df = df[["station_code", "locality_name"]].drop_duplicates()
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
-    ids_dict = dict(zip(df["id_registration"], df["locality_name"]))
+    ids_dict = dict(zip(df["station_code"], df["locality_name"]))
     return ids_dict
     
 
-
-def download_airquality_data_period(
+def download_airquality_data(
     start_year: int = 2025,
     end_year: int = 2025,
-    months: list[int] | None = None,
     data_dir_url: str = "https://opendata.chmi.cz/air_quality/recent/data/",
     out_path: Path | str = RAW_DIR / "airquality_CHMI_1hour.csv",
-    ids_to_keep: list[str] | None = None,
+    ids_csv: Path | str = RAW_DIR / "air_stat_dict.csv",
 ):
     out_path = _ensure_parent(out_path)
+
+    try:
+        df_ids = pd.read_csv(ids_csv, encoding="utf-8-sig")
+        ids_to_keep = df_ids["station_code"].tolist()
+        print(f"Loaded {len(ids_to_keep)} station IDs from {ids_csv.name} for filtering.")
+    except FileNotFoundError:
+        print(f"Warning: {ids_csv} not found. Proceeding without ID filtering.")
+        ids_to_keep = None
+
     resp = requests.get(data_dir_url, timeout=60)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -167,7 +216,7 @@ def download_airquality_data_period(
         raise FileNotFoundError("No CSV files found in the directory.")
 
     years = [f"{year}" for year in range(start_year, end_year + 1)]
-    months = [f"{month:02d}" for month in (months or range(1, 13))]
+    months = [f"{month:02d}" for month in range(1, 13)]
     file_prefixes = [f"airquality_1h_avg_CZ_{year}{month}" for year in years for month in months]
     files_period = sorted(
         file for file in csv_files if any(file.startswith(prefix) for prefix in file_prefixes)
@@ -198,6 +247,8 @@ def download_airquality_data_period(
 
     if not results:
         return pd.DataFrame()
+    
+    print(f"Downloaded {len(results)} air-quality files.")
 
     df = pd.concat(results, ignore_index=True)
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
@@ -205,27 +256,19 @@ def download_airquality_data_period(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Download raw CHMI and air-quality data.")
-    parser.add_argument("--start-year", type=int, default=2025)
-    parser.add_argument("--end-year", type=int, default=2025)
-    parser.add_argument("--months", nargs="*", type=int, default=None)
-    args = parser.parse_args()
-
     download_chmi_weather_stations_metadata()
     download_chmi_weather_variables_metadata()
     build_and_save_wsi_dict()
-    download_chmi_weather_data(start_year=args.start_year, end_year=args.end_year)
+
+    print("Downloading Weather Data (2025)...")
+    download_chmi_weather_data()
     
-    # Download air-quality IDs dictionary
-    air_ids_dict = download_airquality_ids_dict()
-    ids_to_keep = list(air_ids_dict.keys()) if air_ids_dict else None
-    
-    download_airquality_data_period(
-        start_year=args.start_year,
-        end_year=args.end_year,
-        months=args.months,
-        ids_to_keep=ids_to_keep,
-    )
+    download_airquality_metadata()
+    build_and_save_air_stations_dict()
+
+    print("Downloading Air Quality Data (2025)...")
+    download_airquality_data()
+
     print("All downloads completed.")
 
 
