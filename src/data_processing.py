@@ -1,13 +1,3 @@
-"""
-
-Usage:
-    python src/data_processing.py
-
-Outputs:
-    - data/processed/processed_data.csv
-    - data/raw/wsi_dict.csv
-    - data/raw/chmi_vars_dict.csv
-"""
 
 from pathlib import Path
 import os
@@ -23,17 +13,15 @@ import geopandas as gpd
 from shapely.geometry import LineString
 
 
-
-
 def get_paths():
     repo_root = Path(__file__).resolve().parents[1]
-    data_raw = repo_root / "data" / "raw"
-    data_processed = repo_root / "data" / "processed"
-    data_processed.mkdir(parents=True, exist_ok=True)
-    return repo_root, data_raw, data_processed
+    data_raw_path = repo_root / "data" / "raw"
+    data_processed_path = repo_root / "data" / "processed"
+    data_processed_path.mkdir(parents=True, exist_ok=True)
+    return repo_root, data_raw_path, data_processed_path
 
 
-def process_weather_stations(data_raw, keep_contains="Praha", drop_wsi=None, window_start=None, window_end=None):
+def process_weather_stations(data_raw_path, keep_contains="Praha", drop_wsi=None, window_start=None, window_end=None):
     if window_start is None:
         window_start = pd.Timestamp("2025-01-01", tz="UTC")
     elif isinstance(window_start, str):
@@ -46,7 +34,7 @@ def process_weather_stations(data_raw, keep_contains="Praha", drop_wsi=None, win
     if window_start > window_end:
         raise ValueError("window_start must be <= window_end")
 
-    df = pd.read_csv(data_raw / "chmi_weather_stations_metadata.csv")
+    df = pd.read_csv(data_raw_path / "chmi_weather_stations_metadata.csv")
     df = df[df["FULL_NAME"].str.contains(keep_contains, case=False, na=False)]
     if drop_wsi is None:
         drop_wsi = [
@@ -72,17 +60,21 @@ def write_dict_csv(d: dict, path: Path):
         writer.writerows(d.items())
 
 
-def build_wsi_and_var_dicts(df_chmi_stat, df_chmi_vars, data_raw):
-    wsi_dict = dict(zip(df_chmi_stat["WSI"].astype(str), df_chmi_stat["FULL_NAME"].astype(str)))
-    write_dict_csv(wsi_dict, data_raw / "wsi_dict.csv")
+def build_wsi_and_var_dicts(df_chmi_stat, df_chmi_vars, data_raw_path):
+    wsi_dict = dict(
+        zip(df_chmi_stat["WSI"].astype(str),
+             df_chmi_stat["FULL_NAME"].astype(str)))
+    write_dict_csv(wsi_dict, data_raw_path / "wsi_dict.csv")
 
-    chmi_vars_dict = dict(zip(df_chmi_vars["EG_EL_ABBREVIATION"].astype(str), df_chmi_vars["NAME"].astype(str)))
-    write_dict_csv(chmi_vars_dict, data_raw / "chmi_vars_dict.csv")
+    chmi_vars_dict = dict(
+        zip(df_chmi_vars["EG_EL_ABBREVIATION"].astype(str),
+             df_chmi_vars["NAME"].astype(str)))
+    write_dict_csv(chmi_vars_dict, data_raw_path / "chmi_vars_dict.csv")
     return wsi_dict, chmi_vars_dict
 
 
-def aggregate_weather_10min_to_hourly(data_raw, wsi_dict, chmi_vars_dict):
-    df = pd.read_csv(data_raw / "weather_data_10min.csv")
+def aggregate_weather_10min_to_hourly(data_raw_path, wsi_dict, chmi_vars_dict):
+    df = pd.read_csv(data_raw_path / "weather_data_10min.csv")
 
     # filter out bad quality
     df = df[df["QUALITY"] != 4]
@@ -99,42 +91,74 @@ def aggregate_weather_10min_to_hourly(data_raw, wsi_dict, chmi_vars_dict):
     dir_elements = {"Dprum", "D"}
 
     parts = []
-    parts.append(df[df["ELEMENT"].isin(sum_elements)].groupby(base, as_index=False, sort=False, observed=True)["VAL"].sum())
-    parts.append(df[df["ELEMENT"].isin(max_elements)].groupby(base, as_index=False, sort=False, observed=True)["VAL"].max())
-    parts.append(df[df["ELEMENT"].isin(min_elements)].groupby(base, as_index=False, sort=False, observed=True)["VAL"].min())
+    parts.append(
+        df[df["ELEMENT"].isin(sum_elements)]
+        .groupby(base, as_index=False, sort=False, observed=True)["VAL"]
+        .sum()
+        )
+    parts.append(
+        df[df["ELEMENT"].isin(max_elements)]
+        .groupby(base, as_index=False, sort=False, observed=True)["VAL"]
+        .max()
+        )
+    parts.append(
+        df[df["ELEMENT"].isin(min_elements)]
+        .groupby(base, as_index=False, sort=False, observed=True)["VAL"]
+        .min()
+        )
 
     df_dir = df[df["ELEMENT"].isin(dir_elements)].copy()
     df_dir["_sin"] = np.sin(np.deg2rad(df_dir["VAL"]))
     df_dir["_cos"] = np.cos(np.deg2rad(df_dir["VAL"]))
-    dir_agg = df_dir.groupby(base, as_index=False, sort=False, observed=True).agg(_sin=("_sin", "sum"), _cos=("_cos", "sum"))
+
+    dir_agg = (
+        df_dir.groupby(base, as_index=False, sort=False, observed=True)
+    .agg(_sin=("_sin", "sum"), _cos=("_cos", "sum"))
+         )
     dir_agg["VAL"] = (np.degrees(np.arctan2(dir_agg["_sin"], dir_agg["_cos"])) % 360)
     dir_agg = dir_agg.drop(columns=["_sin", "_cos"])
     parts.append(dir_agg)
 
     other = ~df["ELEMENT"].isin(sum_elements | max_elements | min_elements | dir_elements)
-    parts.append(df[other].groupby(base, as_index=False, sort=False, observed=True)["VAL"].mean())
+    parts.append(
+        df[other]
+        .groupby(base, as_index=False, sort=False, observed=True)["VAL"]
+        .mean()
+        )
 
-    df_weather_hourly = pd.concat(parts, ignore_index=True).sort_values(["STATION", "WSI", "DT", "ELEMENT"], kind="mergesort").reset_index(drop=True)
+    df_weather_hourly = (
+        pd.concat(parts, ignore_index=True)
+        .sort_values(["STATION", "WSI", "DT", "ELEMENT"], kind="mergesort")
+        .reset_index(drop=True)
+        )
     df_weather_hourly["YEAR"] = df_weather_hourly["DT"].dt.year
     df_weather_hourly["MONTH"] = df_weather_hourly["DT"].dt.month
+
+     # remove unused categories
+    cat_cols = df_weather_hourly.select_dtypes(include=["category"]).columns
+    df_weather_hourly[cat_cols] = df_weather_hourly[cat_cols].apply(
+        lambda s: s.cat.remove_unused_categories().astype(object)
+        )
 
     # map names
     df_weather_hourly["ELEMENT_NAME"] = df_weather_hourly["ELEMENT"].map(chmi_vars_dict)
     df_weather_hourly["WSI_NAME"] = df_weather_hourly["WSI"].map(wsi_dict)
 
-    # remove unused categories
-    cat_cols = df_weather_hourly.select_dtypes(include=["category"]).columns
-    df_weather_hourly[cat_cols] = df_weather_hourly[cat_cols].apply(lambda s: s.cat.remove_unused_categories().astype(object))
-
     return df_weather_hourly
 
 
-def merge_station_metadata(df_weather_hourly, data_raw):
-    stations_meta = pd.read_csv(data_raw / "chmi_weather_stations_metadata.csv")
+def load_and_merge_weather_station_metadata(df_weather_hourly, data_raw_path):
+    stations_meta = pd.read_csv(data_raw_path / "chmi_weather_stations_metadata.csv")
     stations_meta["END_DATE_DT"] = pd.to_datetime(stations_meta["END_DATE"], utc=True, errors="coerce")
-    stations_meta = stations_meta.sort_values("END_DATE_DT").drop_duplicates(subset="WSI", keep="last")
+    stations_meta = (
+        stations_meta.sort_values("END_DATE_DT")
+        .drop_duplicates(subset="WSI", keep="last")
+    )
     stations_sel = stations_meta[["WSI", "FULL_NAME", "ELEVATION", "GEOGR1", "GEOGR2"]].copy()
-    stations_sel = stations_sel.rename(columns={"GEOGR1": "LON", "GEOGR2": "LAT"})
+    stations_sel = stations_sel.rename(columns={
+        "GEOGR1": "LON"
+        , "GEOGR2": "LAT"
+        })
     # ensure string types
     df_weather_hourly["WSI"] = df_weather_hourly["WSI"].astype(str)
     stations_sel["WSI"] = stations_sel["WSI"].astype(str)
@@ -142,22 +166,29 @@ def merge_station_metadata(df_weather_hourly, data_raw):
     return df_weather_ext
 
 
-def load_air_quality(data_raw):
-    df_air = pd.read_csv(data_raw / "airquality_CHMI_1hour.csv")
-    # align column names
+def load_air_quality_meta(data_raw_path):
+    air_stations_meta = pd.read_csv(data_raw_path / "airquality_CHMI_stations_metadata.csv")
+    air_stations_meta = air_stations_meta[
+        air_stations_meta['locality_name'].str.contains('Praha', case=False, na=False)
+        ]
+    air_stations_meta["id_registration"] = air_stations_meta["id_registration"].astype(str)
+
+    return air_stations_meta
+
+def load_and_merge_air_quality_data(air_stations_meta, data_raw_path):
+    df_air = pd.read_csv(data_raw_path / "airquality_CHMI_1hour.csv")
     df_air = df_air.rename(columns={"idRegistration": "id_registration"})
-    return df_air
+    df_air["id_registration"] = df_air["id_registration"].astype(str)
+
+    df_air_qual = df_air.merge(air_stations_meta, on="id_registration", how="right")
+
+    return df_air_qual
 
 
-def preprocess_and_merge_air_weather(df_air, df_weather_ext, air_stations_meta, max_distance_km=5):
-    # prepare station lists
-    weather = df_weather_ext.copy()
-    air = df_air.copy()
-
-    # build station matching
+def spatial_join_stations(air_stations_meta, weather_stations_meta):
 
     weather_stations = (
-        air_stations_meta
+        weather_stations_meta
         .loc[:, ["WSI", "FULL_NAME", "GEOGR1", "GEOGR2", "ELEVATION"]]
         .drop_duplicates()
         .rename(columns={
@@ -185,36 +216,132 @@ def preprocess_and_merge_air_weather(df_air, df_weather_ext, air_stations_meta, 
         })
     )
 
-    air_gdf = gpd.GeoDataFrame(air_stations, geometry=gpd.points_from_xy(air_stations["air_lon"], air_stations["air_lat"]), crs="EPSG:4326")
-    weather_gdf = gpd.GeoDataFrame(weather_stations, geometry=gpd.points_from_xy(weather_stations["weather_lon"], weather_stations["weather_lat"]), crs="EPSG:4326")
+    air_gdf = gpd.GeoDataFrame(
+        air_stations,
+        geometry=gpd.points_from_xy(
+            air_stations["air_lon"],
+            air_stations["air_lat"]
+            ),
+             crs="EPSG:4326"
+    )
+    weather_gdf = gpd.GeoDataFrame(
+        weather_stations,
+        geometry=gpd.points_from_xy(
+            weather_stations["weather_lon"],
+            weather_stations["weather_lat"]
+        ),
+        crs="EPSG:4326"
+        )
+    
+    #convert to meters
     air_gdf_m = air_gdf.to_crs("EPSG:5514")
     weather_gdf_m = weather_gdf.to_crs("EPSG:5514")
-    nearest_match = gpd.sjoin_nearest(air_gdf_m, weather_gdf_m, how="left", distance_col="distance_m")
+    #find nearest match
+    nearest_match = gpd.sjoin_nearest(
+        air_gdf_m,
+        weather_gdf_m,
+        how="left", 
+        distance_col="distance_m"
+        )
+    #add km column
     nearest_match["distance_km"] = nearest_match["distance_m"] / 1000
-    station_match = nearest_match[["air_station_code", "air_station_name", "air_lon", "air_lat", "air_alt", "weather_station_id", "weather_station_name", "weather_lon", "weather_lat", "weather_alt", "distance_m", "distance_km"]].copy()
-    # keep nearest per air station
-    station_match = station_match.sort_values("distance_m").drop_duplicates(subset=["air_station_name"], keep="first")
+    #clean cols
+    station_match = nearest_match[
+        ["air_station_code", "air_station_name", 
+         "air_lon", "air_lat", "air_alt", 
+         "weather_station_id", "weather_station_name", 
+         "weather_lon", "weather_lat", "weather_alt", 
+         "distance_m", "distance_km"
+         ]
+    ].copy()
 
-    # pivot air wide
+    return nearest_match
+
+
+def process_and_merge_air_weather_data(df_air_qual, df_weather_ext, nearest_match, max_distance_km=5):
+    air = df_air_qual
+    weather = df_weather_ext
+    station_match = nearest_match
+    # clean column names
+    air.columns = air.columns.str.strip()
+    weather.columns = weather.columns.str.strip()
+    station_match.columns = station_match.columns.str.strip()
+    # set time columns
     air_time_col = "startTime"
+    weather_time_col = "DT"
+    # clean station names
+    air["locality_name"] = air["locality_name"].astype(str).str.strip()
+    weather["WSI_NAME"] = weather["WSI_NAME"].astype(str).str.strip()
+    station_match["air_station_name"] = station_match["air_station_name"].astype(str).str.strip()
+    station_match["weather_station_name"] = station_match["weather_station_name"].astype(str).str.strip()
+    # convert times
     air[air_time_col] = pd.to_datetime(air[air_time_col]).dt.tz_localize(None)
-    air_wide = air.pivot_table(index=[air_time_col, "locality_name"], columns="component_code", values="value", aggfunc="mean").reset_index()
+    weather[weather_time_col] = pd.to_datetime(weather[weather_time_col]).dt.tz_localize(None)
+    # keep one nearest weather station per air station
+    station_match_nearest = (
+        station_match
+        .sort_values("distance_m")
+        .drop_duplicates(subset=["air_station_name"], keep="first")
+        .copy()
+    )
+    
+    # pivot air wide
+    air_wide = (
+        air.pivot_table(
+            index=[air_time_col, "locality_name"],
+            columns="component_code", 
+            values="value", 
+            aggfunc="mean"
+            )
+            .reset_index()
+    )
+    
     air_wide.columns.name = None
-    air_wide = air_wide.rename(columns={col: f"air_{col}" for col in air_wide.columns if col not in [air_time_col, "locality_name"]})
+    air_wide = air_wide.rename(
+        columns={
+            col: f"air_{col}" for col in air_wide.columns
+              if col not in [air_time_col, "locality_name"]
+        }
+    )
+
+    air_wide_with_match = air_wide.merge(
+        station_match_nearest,
+        left_on="locality_name", 
+        right_on="air_station_name", 
+        how="left", 
+        validate="many_to_one"
+    )
 
     # pivot weather wide
-    weather_time_col = "DT"
-    weather_wide = weather.pivot_table(index=[weather_time_col, "WSI_NAME"], columns="ELEMENT", values="VAL", aggfunc="mean").reset_index()
+    weather_wide = (
+        weather.pivot_table(
+        index=[weather_time_col, "WSI_NAME"], 
+        columns="ELEMENT", 
+        values="VAL", 
+        aggfunc="mean"
+        )
+        .reset_index()
+    )
     weather_wide.columns.name = None
-    weather_wide = weather_wide.rename(columns={col: f"weather_{col}" for col in weather_wide.columns if col not in [weather_time_col, "WSI_NAME"]})
+    weather_wide = weather_wide.rename(
+        columns={
+            col: f"weather_{col}" for col in weather_wide.columns 
+            if col not in [weather_time_col, "WSI_NAME"]
+        }
+    )
 
     # merge using station matching table if available
-    air_wide_with_match = air_wide.merge(station_match, left_on="locality_name", right_on="air_station_name", how="left", validate="many_to_one")
-    
-    df_merged = air_wide_with_match.merge(weather_wide, left_on=[air_time_col, "weather_station_name"], right_on=[weather_time_col, "WSI_NAME"], how="left", validate="many_to_one")
+
+    df_merged = air_wide_with_match.merge(
+        weather_wide,
+        left_on=[air_time_col, "weather_station_name"], 
+        right_on=[weather_time_col, "WSI_NAME"], 
+        how="left", 
+        validate="many_to_one"
+    )
 
     # drop distant matches
-    df_merged = df_merged[df_merged["distance_km"] <= max_distance_km].copy()
+    df_merged = df_merged[df_merged["distance_km"] <= max_distance_km]
 
     # basic cleaning
     cols_to_keep = [
@@ -236,13 +363,54 @@ def preprocess_and_merge_air_weather(df_air, df_weather_ext, air_stations_meta, 
 
     return df_merged
 
+def clean_data(df_merged):
+    cols_to_keep = [
+        'startTime','weather_station_name','air_station_name', 
+        'air_NO2', 'air_NOx', 'air_PM10', 
+        'weather_D', 'weather_Dmax', 'weather_Dprum', 
+        'weather_F', 'weather_Fmax', 'weather_Fprum', 
+        'weather_H', 'weather_P','weather_SRA10M', 
+        'weather_SSV10M', 'weather_T','weather_TMA', 'weather_TMI', 
+        'air_lon', 'air_lat', 'air_alt', 'weather_lon', 
+        'weather_lat', 'weather_alt', 'distance_km'
+    ]
+    df_merged = df_merged[cols_to_keep]
+
+    numeric_cols = df_merged.select_dtypes(include="number").columns
+
+    negative_counts = (df_merged[numeric_cols] < 0).sum()
+
+    print(negative_counts)
+
+    # replace those with NA's
+    df_merged[[
+        "air_NO2", "air_NOx", "air_PM10"
+    ]] = df_merged[[
+        "air_NO2", "air_NOx", "air_PM10"
+    ]].mask(
+        df_merged[[
+        "air_NO2", "air_NOx", "air_PM10"
+    ]] < 0,
+        np.nan
+    )
+
+    # drop stations with no weather data
+    df_merged = df_merged[~df_merged["air_station_name"].isin(["Praha 6-Břevnov" , "Praha 5-Stodůlky"])]
+    # drop as there are too many na's
+    df_merged = df_merged.drop(columns = ["weather_SSV10M", "air_alt"])
+
+    df_cleaned = df_merged
+
+    return df_cleaned
+
 
 def engineer_features(df_merged):
-    df = df_merged.copy()
-    df = df.rename(columns={"startTime": "startTime"})
-    df["startTime"] = pd.to_datetime(df["startTime"], errors='coerce')
+    df = df_merged
+    # df = df.rename(columns={"startTime": "startTime"})
+    # df["startTime"] = pd.to_datetime(df["startTime"], errors='coerce')
 
     # date features
+    df["startTime"] = pd.to_datetime(df["startTime"])
     df["hour"] = df["startTime"].dt.hour
     df["dayofweek"] = df["startTime"].dt.dayofweek
     df["is_weekend"] = df["dayofweek"].isin([5, 6]).astype(int)
@@ -264,11 +432,15 @@ def engineer_features(df_merged):
     "weather_lon", "weather_lat", "weather_alt",
     "distance_km"
     ]
+    id_cols = [
+        "startTime", "weather_station_name", "air_station_name"
+    ]
+
     numeric_should_be = target_cols + weather_cols + spatial_cols
     df[numeric_should_be] = df[numeric_should_be].apply(pd.to_numeric, errors="coerce")
 
     # wind vector
-    theta = np.deg2rad(df["weather_D"].fillna(0))
+    theta = np.deg2rad(df["weather_D"])
     df["wind_u"] = -df["weather_F"] * np.sin(theta)
     df["wind_v"] = -df["weather_F"] * np.cos(theta)
 
@@ -278,48 +450,60 @@ def engineer_features(df_merged):
 
     for var in meteo_vars:
         df[f"{var}_lag1"] = df.groupby("air_station_name")[var].shift(1)
-        df[f"{var}_mean3"] = df.groupby("air_station_name")[var].transform(lambda x: x.shift(1).rolling(3, min_periods=1).mean())
-        df[f"{var}_mean6"] = df.groupby("air_station_name")[var].transform(lambda x: x.shift(1).rolling(6, min_periods=1).mean())
+        df[f"{var}_mean3"] = (
+            df.groupby("air_station_name")[var]
+            .transform(lambda x: x.shift(1).rolling(3, min_periods=1).mean())
+        )
+        df[f"{var}_mean6"] = (
+            df.groupby("air_station_name")[var]
+            .transform(lambda x: x.shift(1).rolling(6, min_periods=1).mean())
+        )
 
     for window in [3, 6, 12, 24]:
-        df[f"precip_sum{window}"] = df.groupby("air_station_name")["weather_SRA10M"].transform(lambda x: x.shift(1).rolling(window, min_periods=1).sum())
+        df[f"precip_sum{window}"] = (
+            df.groupby("air_station_name")["weather_SRA10M"]
+            .transform(lambda x: x.shift(1).rolling(window, min_periods=1).sum())
+        )
 
     df["weather_P_change6"] = df["weather_P"] - df.groupby("air_station_name")["weather_P"].shift(6)
 
-    return df
+    df_final = df
+
+    return df_final
 
 
-def save_processed(df, data_processed, fname="processed_data.csv"):
-    path = data_processed / fname
-    df.to_csv(path, index=False)
+def save_processed(df_final, data_processed_path, fname="processed_data.csv"):
+    path = data_processed_path / fname
+    df_final.to_csv(path, index=False)
     return path
 
 
 def main():
-    repo_root, data_raw, data_processed = get_paths()
+    repo_root, data_raw_path, data_processed_path = get_paths()
 
     # process station metadata
-    df_chmi_stat = process_weather_stations(data_raw)
+    df_chmi_stat = process_weather_stations(data_raw_path)
 
     # load variable metadata and build dicts
-    df_chmi_vars = pd.read_csv(data_raw / "chmi_weather_variables_metadata.csv")
-    wsi_dict, chmi_vars_dict = build_wsi_and_var_dicts(df_chmi_stat, df_chmi_vars, data_raw)
+    df_chmi_vars = pd.read_csv(data_raw_path / "chmi_weather_variables_metadata.csv")
+    wsi_dict, chmi_vars_dict = build_wsi_and_var_dicts(df_chmi_stat, df_chmi_vars, data_raw_path)
 
     # aggregate weather
-    df_weather_hourly = aggregate_weather_10min_to_hourly(data_raw, wsi_dict, chmi_vars_dict)
-    df_weather_ext = merge_station_metadata(df_weather_hourly, data_raw)
+    df_weather_hourly = aggregate_weather_10min_to_hourly(data_raw_path, wsi_dict, chmi_vars_dict)
+    df_weather_ext = load_and_merge_weather_station_metadata(df_weather_hourly, data_raw_path)
 
     # load air quality and station metadata
-    df_air = load_air_quality(data_raw)
-    air_stations_meta = pd.read_csv(data_raw / "airquality_CHMI_stations_metadata.csv")
+    df_air_qual = load_and_merge_air_quality_data(data_raw_path)
+    air_stations_meta = load_air_quality_meta(data_raw_path)
 
     # preprocess and merge
-    df_merged = preprocess_and_merge_air_weather(df_air, df_weather_ext, air_stations_meta)
+    df_merged = process_and_merge_air_weather_data(df_air_qual, df_weather_ext, air_stations_meta)
 
     # data cleaning and engineering
-    df_final = engineer_features(df_merged)
+    df_cleaned = clean_data(df_merged)
+    df_final = engineer_features(df_cleaned)
 
-    out_path = save_processed(df_final, data_processed)
+    out_path = save_processed(df_final, data_processed_path)
     print(f"Saved processed data to: {out_path}")
 
 
