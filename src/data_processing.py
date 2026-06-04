@@ -27,7 +27,7 @@ def process_weather_stations(data_raw_path, keep_contains="Praha", drop_wsi=None
     elif isinstance(window_start, str):
         window_start = pd.Timestamp(window_start, tz="UTC")
     if window_end is None:
-        window_end = pd.Timestamp("2026-12-31", tz="UTC")
+        window_end = pd.Timestamp("2025-12-31", tz="UTC")
     elif isinstance(window_end, str):
         window_end = pd.Timestamp(window_end, tz="UTC")
 
@@ -53,28 +53,35 @@ def process_weather_stations(data_raw_path, keep_contains="Praha", drop_wsi=None
     return df
 
 
-def write_dict_csv(d: dict, path: Path):
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["key", "value"])
-        writer.writerows(d.items())
+# def write_dict_csv(d: dict, path: Path):
+#     with open(path, "w", encoding="utf-8-sig", newline="") as f:
+#         writer = csv.writer(f)
+#         writer.writerow(["key", "value"])
+#         writer.writerows(d.items())
 
 
-def build_wsi_and_var_dicts(df_chmi_stat, df_chmi_vars, data_raw_path):
-    wsi_dict = dict(
-        zip(df_chmi_stat["WSI"].astype(str),
-             df_chmi_stat["FULL_NAME"].astype(str)))
-    write_dict_csv(wsi_dict, data_raw_path / "wsi_dict.csv")
+# def build_wsi_and_var_dicts(df_chmi_stat, df_chmi_vars, data_raw_path):
+#     wsi_dict = dict(
+#         zip(df_chmi_stat["WSI"].astype(str),
+#              df_chmi_stat["FULL_NAME"].astype(str)))
+#     write_dict_csv(wsi_dict, data_raw_path / "wsi_dict.csv")
 
-    chmi_vars_dict = dict(
-        zip(df_chmi_vars["EG_EL_ABBREVIATION"].astype(str),
-             df_chmi_vars["NAME"].astype(str)))
-    write_dict_csv(chmi_vars_dict, data_raw_path / "chmi_vars_dict.csv")
-    return wsi_dict, chmi_vars_dict
+#     chmi_vars_dict = dict(
+#         zip(df_chmi_vars["EG_EL_ABBREVIATION"].astype(str),
+#              df_chmi_vars["NAME"].astype(str)))
+#     write_dict_csv(chmi_vars_dict, data_raw_path / "chmi_vars_dict.csv")
+#     return wsi_dict, chmi_vars_dict
 
 
-def aggregate_weather_10min_to_hourly(data_raw_path, wsi_dict, chmi_vars_dict):
+def aggregate_weather_10min_to_hourly(data_raw_path):
     df = pd.read_csv(data_raw_path / "weather_data_10min.csv")
+
+    #load dicts
+    wsi_df = pd.read_csv(data_raw_path / "wsi_dict.csv")
+    chmi_vars_df = pd.read_csv(data_raw_path / "chmi_vars_dict.csv")
+
+    wsi_dict = wsi_df.set_index("key")["value"].to_dict()
+    chmi_vars_dict = chmi_vars_df.set_index("key")["value"].to_dict()
 
     # filter out bad quality
     df = df[df["QUALITY"] != 4]
@@ -484,17 +491,13 @@ def main():
     # process station metadata
     df_chmi_stat = process_weather_stations(data_raw_path)
 
-    # load variable metadata and build dicts
-    df_chmi_vars = pd.read_csv(data_raw_path / "chmi_weather_variables_metadata.csv")
-    wsi_dict, chmi_vars_dict = build_wsi_and_var_dicts(df_chmi_stat, df_chmi_vars, data_raw_path)
-
     # aggregate weather
-    df_weather_hourly = aggregate_weather_10min_to_hourly(data_raw_path, wsi_dict, chmi_vars_dict)
+    df_weather_hourly = aggregate_weather_10min_to_hourly(data_raw_path)
     df_weather_ext = load_and_merge_weather_station_metadata(df_weather_hourly, data_raw_path)
 
     # load air quality and station metadata
-    df_air_qual = load_and_merge_air_quality_data(data_raw_path)
     air_stations_meta = load_air_quality_meta(data_raw_path)
+    df_air_qual = load_and_merge_air_quality_data(air_stations_meta, data_raw_path)
 
     # preprocess and merge
     df_merged = process_and_merge_air_weather_data(df_air_qual, df_weather_ext, air_stations_meta)

@@ -2,6 +2,8 @@ import io
 import time
 from pathlib import Path
 
+import csv
+
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
@@ -81,6 +83,21 @@ def build_and_save_wsi_dict(
         out_path, index=False, encoding="utf-8-sig"
     )
     return wsi_dict
+
+
+def write_dict_csv(d: dict, path: Path):
+    with open(path, "w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["key", "value"])
+        writer.writerows(d.items())
+
+def build_var_dict(data_raw_path):
+    df_chmi_vars = pd.read_csv(RAW_DIR / "chmi_weather_variables_metadata.csv")
+    chmi_vars_dict = dict(
+        zip(df_chmi_vars["EG_EL_ABBREVIATION"].astype(str),
+             df_chmi_vars["NAME"].astype(str)))
+    write_dict_csv(chmi_vars_dict, data_raw_path / "chmi_vars_dict.csv")
+    return chmi_vars_dict
 
 
 def download_chmi_weather_data(
