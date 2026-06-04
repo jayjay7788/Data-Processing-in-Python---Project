@@ -50,7 +50,12 @@ def process_weather_stations(data_raw_path, keep_contains="Praha", drop_wsi=None
     df = df.sort_values("END_DATE_DT").drop_duplicates(subset="WSI", keep="last")
     if window_start is not None and window_end is not None:
         df = df[(df["BEGIN_DATE_DT"] <= window_start) & (df["END_DATE_DT"] >= window_end)].copy()
-    return df
+    
+    weather_stations_meta = (
+        df.sort_values("END_DATE_DT")
+        .drop_duplicates(subset="WSI", keep="last")
+    )
+    return weather_stations_meta
 
 
 # def write_dict_csv(d: dict, path: Path):
@@ -154,14 +159,14 @@ def aggregate_weather_10min_to_hourly(data_raw_path):
     return df_weather_hourly
 
 
-def load_and_merge_weather_station_metadata(df_weather_hourly, data_raw_path):
-    stations_meta = pd.read_csv(data_raw_path / "chmi_weather_stations_metadata.csv")
-    stations_meta["END_DATE_DT"] = pd.to_datetime(stations_meta["END_DATE"], utc=True, errors="coerce")
-    stations_meta = (
-        stations_meta.sort_values("END_DATE_DT")
-        .drop_duplicates(subset="WSI", keep="last")
-    )
-    stations_sel = stations_meta[["WSI", "FULL_NAME", "ELEVATION", "GEOGR1", "GEOGR2"]].copy()
+def load_and_merge_weather_station_metadata(df_weather_hourly, weather_stations_meta):
+    # stations_meta = pd.read_csv(data_raw_path / "chmi_weather_stations_metadata.csv")
+    # stations_meta["END_DATE_DT"] = pd.to_datetime(stations_meta["END_DATE"], utc=True, errors="coerce")
+    # stations_meta = (
+    #     stations_meta.sort_values("END_DATE_DT")
+    #     .drop_duplicates(subset="WSI", keep="last")
+    # )
+    stations_sel = weather_stations_meta[["WSI", "FULL_NAME", "ELEVATION", "GEOGR1", "GEOGR2"]].copy()
     stations_sel = stations_sel.rename(columns={
         "GEOGR1": "LON"
         , "GEOGR2": "LAT"
@@ -253,7 +258,7 @@ def spatial_join_stations(air_stations_meta, weather_stations_meta):
     #add km column
     nearest_match["distance_km"] = nearest_match["distance_m"] / 1000
     #clean cols
-    station_match = nearest_match[
+    nearest_match = nearest_match[
         ["air_station_code", "air_station_name", 
          "air_lon", "air_lat", "air_alt", 
          "weather_station_id", "weather_station_name", 
@@ -377,17 +382,11 @@ def clean_data(df_merged):
         'weather_D', 'weather_Dmax', 'weather_Dprum', 
         'weather_F', 'weather_Fmax', 'weather_Fprum', 
         'weather_H', 'weather_P','weather_SRA10M', 
-        'weather_SSV10M', 'weather_T','weather_TMA', 'weather_TMI', 
-        'air_lon', 'air_lat', 'air_alt', 'weather_lon', 
+        'weather_T','weather_TMA', 'weather_TMI', 
+        'air_lon', 'air_lat', 'weather_lon', 
         'weather_lat', 'weather_alt', 'distance_km'
     ]
     df_merged = df_merged[cols_to_keep]
-
-    numeric_cols = df_merged.select_dtypes(include="number").columns
-
-    negative_counts = (df_merged[numeric_cols] < 0).sum()
-
-    print(negative_counts)
 
     # replace those with NA's
     df_merged[[
@@ -403,8 +402,6 @@ def clean_data(df_merged):
 
     # drop stations with no weather data
     df_merged = df_merged[~df_merged["air_station_name"].isin(["Praha 6-Břevnov" , "Praha 5-Stodůlky"])]
-    # drop as there are too many na's
-    df_merged = df_merged.drop(columns = ["weather_SSV10M", "air_alt"])
 
     df_cleaned = df_merged
 
@@ -484,12 +481,23 @@ def save_processed(df_final, data_processed_path, fname="processed_data.csv"):
     df_final.to_csv(path, index=False)
     return path
 
+### alternative using parquet compression
+
+# def save_processed(df_final, data_processed_path, fname="processed_data.parquet"):
+#     path = data_processed_path / fname
+    
+#     # Save as compressed Parquet instead of CSV
+#     df_final.to_parquet(path, index=False)
+    
+#     print(f"Successfully saved compressed data to: {path}")
+#     return path
+
 
 def main():
     repo_root, data_raw_path, data_processed_path = get_paths()
 
     # process station metadata
-    df_chmi_stat = process_weather_stations(data_raw_path)
+    weather_stations_meta = process_weather_stations(data_raw_path)
 
     # aggregate weather
     df_weather_hourly = aggregate_weather_10min_to_hourly(data_raw_path)
@@ -499,8 +507,11 @@ def main():
     air_stations_meta = load_air_quality_meta(data_raw_path)
     df_air_qual = load_and_merge_air_quality_data(air_stations_meta, data_raw_path)
 
+    #spatial join
+    nearest_match = spatial_join_stations(air_stations_meta, weather_stations_meta)
+
     # preprocess and merge
-    df_merged = process_and_merge_air_weather_data(df_air_qual, df_weather_ext, air_stations_meta)
+    df_merged = process_and_merge_air_weather_data(df_air_qual, df_weather_ext, nearest_match)
 
     # data cleaning and engineering
     df_cleaned = clean_data(df_merged)
