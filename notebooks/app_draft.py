@@ -47,29 +47,41 @@ def get_model_bundle():
 
 def predict_pollution(w_speed, temp, hum, pressure, rain, stat):
     bundle = get_model_bundle()
-    hour = pd.Timestamp.now().hour
-    dayofweek = pd.Timestamp.now().dayofweek
+    
+    # Calculate the exact time variables the model was trained on
+    now = pd.Timestamp.now()
+    hour = now.hour
+    dayofweek = now.dayofweek
+    is_weekend = 1 if dayofweek in [5, 6] else 0
+    month = now.month
+    dayofyear = now.dayofyear
 
+    # FIX: Change the keys to use the 'weather_' prefix so the model recognizes them!
     input_data = pd.DataFrame([
         {
-            "T": temp,
-            "TMA": temp + 1.0,
-            "TMI": temp - 1.0,
-            "P": pressure,
-            "H": hum,
-            "F": w_speed,
-            "Fmax": min(15.0, w_speed + 2.0),
-            "D": 0.0,
-            "Dprum": 0.0,
-            "Dmax": 0.0,
-            "SRA10M": rain,
+            "weather_T": temp,
+            "weather_TMA": temp + 1.0,
+            "weather_TMI": temp - 1.0,
+            "weather_P": pressure,
+            "weather_H": hum,
+            "weather_F": w_speed,
+            "weather_Fmax": min(15.0, w_speed + 2.0),
+            "weather_D": 0.0,
+            "weather_Dprum": 0.0,
+            "weather_Dmax": 0.0,
+            "weather_SRA10M": rain,
             "hour": hour,
             "dayofweek": dayofweek,
-            "locality_name": stat,
-            "station_name_weather": stat,
+            "is_weekend": is_weekend,
+            "month": month,
+            "dayofyear": dayofyear,
+            "air_station_name": stat,
+            "weather_station_name": stat,
+            "distance_km": 1.2
         }
     ])
 
+    # Pass the correctly formatted data into the bundle
     predictions = predict_bundle(bundle, input_data).iloc[0]
     return float(predictions.get("air_PM10", 0.0)), float(predictions.get("air_NO2", 0.0))
 
