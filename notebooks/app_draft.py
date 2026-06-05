@@ -6,7 +6,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from windrose import WindroseAxes
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -39,7 +38,7 @@ df_historical = load_historical_data()
 tab1, tab2 = st.tabs(["🔮 Microclimate Simulator", "📊 Historical Visualizations"])
 
 # ==============================================================================
-# 🔮 TAB 1: SIMULATOR (Fully complete and optimized)
+# 🔮 TAB 1: SIMULATOR (Fully complete and optimized with PM10, NO2, and NOx)
 # ==============================================================================
 with tab1:
     st.header("Real-Time Scenario Simulator")
@@ -122,18 +121,25 @@ with tab1:
         input_data = pd.DataFrame([payload])
         predictions = predict_bundle(bundle, input_data).iloc[0]
         
-        return float(predictions.get("air_PM10", 0.0)), float(predictions.get("air_NO2", 0.0))
+        return (
+            float(predictions.get("air_PM10", 0.0)), 
+            float(predictions.get("air_NO2", 0.0)),
+            float(predictions.get("air_NOx", 0.0))
+        )
 
-    pred_pm10, pred_no2 = predict_pollution(wind_speed, wind_direction, temperature, humidity, pressure, rain, station)
+    pred_pm10, pred_no2, pred_nox = predict_pollution(wind_speed, wind_direction, temperature, humidity, pressure, rain, station)
 
     st.subheader(f"Predicted Airborne Concentrations for: {station}")
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
-        delta_color = "inverse" if pred_pm10 > 50 else "normal"
-        st.metric(label="PM10 Concentration (µg/m³)", value=f"{pred_pm10:.1f}", delta="Above EU Limit (50)" if pred_pm10 > 50 else "Within Safe Limits", delta_color=delta_color)
+        delta_color_pm10 = "inverse" if pred_pm10 > 50 else "normal"
+        st.metric(label="PM10 Concentration (µg/m³)", value=f"{pred_pm10:.1f}", delta="Above EU Limit (50)" if pred_pm10 > 50 else "Within Safe Limits", delta_color=delta_color_pm10)
     with col2:
-        delta_color_no2 = "inverse" if pred_no2 > 40 else "normal"
-        st.metric(label="NO2 Concentration (µg/m³)", value=f"{pred_no2:.1f}", delta="Above EU Limit (40)" if pred_no2 > 40 else "Within Safe Limits", delta_color=delta_color_no2)
+        delta_color_no2 = "inverse" if pred_no2 > 200 else "normal"
+        st.metric(label="NO2 Concentration (µg/m³)", value=f"{pred_no2:.1f}", delta="Above EU Limit (200)" if pred_no2 > 200 else "Within Safe Limits", delta_color=delta_color_no2)
+    with col3:
+        delta_color_nox = "inverse" if pred_nox > 200 else "normal"
+        st.metric(label="NOx Concentration (µg/m³)", value=f"{pred_nox:.1f}", delta="High Emissions" if pred_nox > 200 else "Normal Baseline", delta_color=delta_color_nox)
 
     st.caption("Note: These predictions come from the saved trained model bundle and are loaded once per session.")
 
@@ -156,7 +162,7 @@ with tab1:
 # ==============================================================================
 with tab2:
     st.header("Historical Air Quality & Weather Analysis")
-    st.write("Explore long-term air quality trends and weather relationships in Prague.")
+    st.write("Analyze how changing weather conditions interact with city pollution levels over time.")
 
     st.write("---")
     st.subheader("Weather Conditions and Air Pollution Co-movements")
@@ -166,7 +172,7 @@ with tab2:
     with col1:
         selected_viz_station = st.selectbox("Filter by Station", options=available_stations, key="viz_station")
     with col2:
-        pollutant = st.selectbox("Select Target Pollutant", ["air_PM10", "air_NO2"])
+        pollutant = st.selectbox("Select Target Pollutant", ["air_PM10", "air_NO2", "air_NOx"])
     with col3:
         weather_var = st.selectbox(
             "Select Weather Overlay", 
@@ -234,8 +240,18 @@ with tab2:
         use_marker = 'o' if (frequency != 'RAW' and len(resampled_viz) < 60) else None
         
         # --- AXIS 1: POLLUTION (Primary Left Y-Axis) ---
-        line_color1 = '#1E88E5' if pollutant == "air_PM10" else '#D81B60'
-        pollutant_label = "PM10 Concentration (µg/m³)" if pollutant == "air_PM10" else "NO2 Concentration (µg/m³)"
+        if pollutant == "air_PM10":
+            line_color1 = '#1E88E5'
+            pollutant_label = "PM10 Concentration (µg/m³)"
+            legal_threshold = 50.0
+        elif pollutant == "air_NO2":
+            line_color1 = '#D81B60'
+            pollutant_label = "NO2 Concentration (µg/m³)"
+            legal_threshold = 40.0
+        else:
+            line_color1 = '#8E24AA'
+            pollutant_label = "NOx Concentration (µg/m³)"
+            legal_threshold = 30.0 # Informational benchmark value for vegetation/general protection lines
 
         line1 = ax1.plot(
             resampled_viz['startTime'], 
@@ -252,8 +268,7 @@ with tab2:
         ax1.tick_params(axis='y', labelcolor=line_color1)
         ax1.grid(True, linestyle='--', alpha=0.3)
         
-        legal_threshold = 50.0 if pollutant == "air_PM10" else 40.0
-        thresh_line = ax1.axhline(y=legal_threshold, color='#E53935', linestyle=':', linewidth=1.5, label=f"EU Limit ({int(legal_threshold)})")
+        thresh_line = ax1.axhline(y=legal_threshold, color='#E53935', linestyle=':', linewidth=1.5, label=f"Benchmark Limit ({int(legal_threshold)})")
         
         # --- AXIS 2: WEATHER (Secondary Right Y-Axis) ---
         ax2 = ax1.twinx() 
@@ -277,7 +292,7 @@ with tab2:
         all_labels = [l.get_label() for l in all_lines]
         ax1.legend(all_lines, all_labels, loc="upper right")
         
-        plt.title(f"Correlation Analysis: {pollutant} vs {selected_weather_label} at {selected_viz_station}\n({start_date} to {end_date})", fontsize=14, fontweight='bold', pad=15)
+        plt.title(f"Correlation Analysis: {pollutant.replace('air_', '')} vs {selected_weather_label} at {selected_viz_station}\n({start_date} to {end_date})", fontsize=14, fontweight='bold', pad=15)
         ax1.tick_params(axis='x', rotation=25)
         fig.tight_layout()
 
@@ -315,7 +330,7 @@ with tab2:
         # 1. Horizontal filters for the comparison plot
         comp_col1, comp_col2, comp_col3 = st.columns(3)
         with comp_col1:
-            comp_pollutant = st.selectbox("Select Pollutant to Compare", ["air_PM10", "air_NO2"], key="comp_poll")
+            comp_pollutant = st.selectbox("Select Pollutant to Compare", ["air_PM10", "air_NO2", "air_NOx"], key="comp_poll")
         with comp_col2:
             comp_freq_choice = st.selectbox(
                 "Aggregation Frequency",
@@ -330,10 +345,6 @@ with tab2:
             )
             comp_frequency = comp_freq_choice[1]
         with comp_col3:
-            # Extract dataset date boundaries dynamically from your dataframe
-            min_date = df_historical['startTime'].min().date()
-            max_date = df_historical['startTime'].max().date()
-            
             # Independent calendar for the comparison graph
             comp_date_range = st.date_input(
                 "Select Comparison Period",
@@ -386,14 +397,14 @@ with tab2:
                 )
 
             # 5. Graph Chart Aesthetics & Labeling
-            pollutant_title_label = "PM10" if comp_pollutant == "air_PM10" else "NO2"
+            pollutant_title_label = comp_pollutant.replace("air_", "")
             ax_comp.set_title(f"Comparative Spatial Analysis: {pollutant_title_label} Levels Across Prague Districts\n({comp_start} to {comp_end})", fontsize=14, fontweight='bold', pad=15)
             ax_comp.set_xlabel("Timeline Window", fontweight='bold', labelpad=10)
             ax_comp.set_ylabel(f"Concentration (µg/m³)", fontweight='bold')
             ax_comp.grid(True, linestyle='--', alpha=0.3)
             
-            comp_legal_limit = 50.0 if comp_pollutant == "air_PM10" else 40.0
-            ax_comp.axhline(y=comp_legal_limit, color='#E53935', linestyle=':', linewidth=1.5, label=f"EU Safety Boundary ({int(comp_legal_limit)})")
+            comp_legal_limit = 50.0 if comp_pollutant == "air_PM10" else 40.0 if comp_pollutant == "air_NO2" else 30.0
+            ax_comp.axhline(y=comp_legal_limit, color='#E53935', linestyle=':', linewidth=1.5, label=f"Benchmark Boundary ({int(comp_legal_limit)})")
             
             ax_comp.legend(loc="upper left", bbox_to_anchor=(1.01, 1), title="Monitoring Stations")
             
@@ -419,9 +430,9 @@ with tab2:
             with rose_col1:
                 rose_station = st.selectbox("Select Station for Wind Rose", options=available_stations, key="rose_stat")
             with rose_col2:
-                rose_pollutant = st.selectbox("Select Target Pollutant", ["air_PM10", "air_NO2"], key="rose_poll")
+                rose_pollutant = st.selectbox("Select Target Pollutant", ["air_PM10", "air_NO2", "air_NOx"], key="rose_poll")
             with rose_col3:
-                # 🌟 FIX: Independent calendar input for the wind rose layout section
+                # Independent calendar input for the wind rose layout section
                 rose_date_range = st.date_input(
                     "Select Wind Rose Period",
                     value=(min_date, max_date),
@@ -430,7 +441,7 @@ with tab2:
                     key="rose_date_range"
                 )
 
-            # 🌟 FIX: Safely break down the tuple into specific wind rose timeframe limits
+            # Safely break down the tuple into specific wind rose timeframe limits
             if isinstance(rose_date_range, tuple) and len(rose_date_range) == 2:
                 rose_start, rose_end = rose_date_range
             else:
@@ -471,7 +482,7 @@ with tab2:
                     )
 
                     # 5. Visual styling and legends
-                    clean_lbl = "PM10" if rose_pollutant == "air_PM10" else "NO2"
+                    clean_lbl = rose_pollutant.replace("air_", "")
                     ax_rose.set_legend(title=f"{clean_lbl} ($\mu g/m^3$)", bbox_to_anchor=(1.15, 0.95))
                     
                     plt.title(
