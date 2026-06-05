@@ -35,7 +35,7 @@ def run_training_pipeline():
         "weather_P_lag1","weather_P_mean3","weather_P_mean6","weather_P_change6",
         "precip_sum3","precip_sum6","precip_sum12","precip_sum24"
     ]
-    targets = ["air_NO2", "air_PM10"]
+    targets = ["air_NO2", "air_NOx", "air_PM10"]
     
     # Clean up any missing rows in our training target features
     df_clean = df.dropna(subset=numeric_features + targets)
@@ -96,4 +96,4 @@ def predict_pollution(w_speed, temp, hum, pressure, rain, stat):
     ])
 
     predictions = predict_bundle(bundle, input_data).iloc[0]
-    return float(predictions.get("air_PM10", 0.0)), float(predictions.get("air_NO2", 0.0))
+    return float(predictions.get("air_PM10", 0.0)), float(predictions.get("air_NO2", 0.0)), float(predictions.get("air_NOx", 0.0))
