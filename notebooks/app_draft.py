@@ -14,21 +14,21 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.model_wrapper import load_model_bundle, predict_bundle
 
-# Set the page configuration (Must be the first Streamlit command)
+# Set the page configuration
 st.set_page_config(page_title="Prague Microclimate Engine", page_icon="🌤️", layout="wide")
 
-# ==============================================================================
-# 📋 CENTRALIZED VARIABLE CONFIGURATION MAP
-# ==============================================================================
+# CENTRALIZED VARIABLE CONFIGURATION MAP ----
 POLLUTANT_MAP = {
-    "air_PM10": {"label": "PM10 Concentration (µg/m³)", "short": "PM10", "limit": 50.0, "status_text": "Above EU Limit (50)"},
-    "air_NO2":  {"label": "NO2 Concentration (µg/m³)",  "short": "NO2",  "limit": 200, "status_text": "Above EU Limit (40)"},
-    "air_NOx":  {"label": "NOx Concentration (µg/m³)",  "short": "NOx",  "limit": 200, "status_text": "High Emissions"}
+    "air_PM10": {"label": "PM10 Concentration (µg/m³)", "short": "PM10", "limit": 50.0, "status_text": "Above EU Limit (50)"}, # daily limit
+    "air_NO2":  {"label": "NO2 Concentration (µg/m³)",  "short": "NO2",  "limit": 200, "status_text": "Above EU Limit (200)"}, # daily limit
+    "air_NOx":  {"label": "NOx Concentration (µg/m³)",  "short": "NOx",  "limit": 200, "status_text": "High Emissions"} # EU does not declare the safety limit directly
 }
 
-# --- 🛠️ LOAD HISTORICAL DATA AT THE TOP ---
+# LOAD HISTORICAL DATA AT THE TOP ----
+# define path
 PROCESSED_DATA_PATH = PROJECT_ROOT / "data" / "processed" / "processed_data.csv"
 
+# get the data
 @st.cache_data
 def load_historical_data():
     if not PROCESSED_DATA_PATH.exists():
@@ -43,10 +43,7 @@ df_historical = load_historical_data()
 available_stations = df_historical['air_station_name'].unique()
 
 
-# ==============================================================================
-# 🗂️ MASTER DASHBOARD NAVIGATION (Enables Dynamic Sidebar Visibility)
-# ==============================================================================
-# Replacing standard st.tabs with a unified radio selector block at the top
+# MASTER DASHBOARD NAVIGATION ----
 st.title("Prague Air Quality Hub")
 current_view = st.radio(
     "Navigate Workspace Views:",
@@ -57,14 +54,12 @@ current_view = st.radio(
 st.write("---")
 
 
-# ==============================================================================
-# 🔮 VIEW 1: SCENARIO SIMULATOR
-# ==============================================================================
+# VIEW 1: SCENARIO SIMULATOR ----
 if current_view == "🔮 Microclimate Simulator":
     st.header("Real-Time Scenario Simulator")
     st.write("Adjust the weather parameters in the sidebar to simulate pollution levels.")
 
-    # 🛠️ SIDEBAR CONTROLS - LOCKED EXCLUSIVELY TO THE SIMULATOR INTERFACE
+    ## SIDEBAR CONTROLS ----
     st.sidebar.markdown("## Simulation Controls")
     wind_speed = st.sidebar.slider("Wind Speed (m/s)", min_value=0.0, max_value=15.0, value=2.5, step=0.1)
     wind_direction = st.sidebar.slider("Wind Direction (Degrees °)", min_value=0, max_value=360, value=180, step=5, help="0°=North, 90°=East, 180°=South, 270°=West")
@@ -78,6 +73,7 @@ if current_view == "🔮 Microclimate Simulator":
         options=available_stations
     )
 
+    # caption for the sliders
     st.markdown("""
     This interactive engine uses a **Random Forest Machine Learning model** to predict pollution spikes based on localized weather conditions.
     Move the sliders in the sidebar to simulate different atmospheric scenarios.
@@ -90,19 +86,22 @@ if current_view == "🔮 Microclimate Simulator":
         model_path = PROJECT_ROOT / "results" / "models"
         return load_model_bundle(model_path)
 
+    ## PREDICTION FUNCTION ----
     def predict_pollution(w_speed, wind_dir, temp, hum, press, rain_val, stat):
+        # refer to the model bundle
         bundle = get_model_bundle()
+        # preprocess data
         now = pd.Timestamp.now()
         hour = now.hour
         dayofweek = now.dayofweek
         is_weekend = 1 if dayofweek in [5, 6] else 0
         month = now.month
         dayofyear = now.dayofyear
-
         radians = np.deg2rad(wind_dir)
         u_vector = -w_speed * np.sin(radians)
         v_vector = -w_speed * np.cos(radians)
 
+        # define the values that will be used for predictions
         payload = {
             "weather_T": temp, "weather_H": hum, "weather_P": press, "weather_F": w_speed,
             "wind_u": u_vector, "wind_v": v_vector,
@@ -136,10 +135,12 @@ if current_view == "🔮 Microclimate Simulator":
         input_data = pd.DataFrame([payload])
         predictions = predict_bundle(bundle, input_data).iloc[0]
         
+        # return predictions
         return float(predictions.get("air_PM10", 0.0)), float(predictions.get("air_NO2", 0.0)), float(predictions.get("air_NOx", 0.0))
 
     pred_pm10, pred_no2, pred_nox = predict_pollution(wind_speed, wind_direction, temperature, humidity, pressure, rain, station)
 
+    ## PRINT THE RESULTS ----
     st.subheader(f"Predicted Airborne Concentrations for: {station}")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -154,15 +155,33 @@ if current_view == "🔮 Microclimate Simulator":
         meta_nox = POLLUTANT_MAP["air_NOx"]
         delta_color_nox = "inverse" if pred_nox > meta_nox["limit"] else "normal"
         st.metric(label=meta_nox["label"], value=f"{pred_nox:.1f}", delta=meta_nox["status_text"] if pred_nox > meta_nox["limit"] else "Normal Baseline", delta_color=delta_color_nox)
+   
+    # add disclaimer 
+    with st.expander("Disclaimer & Model Approximations"):
+        st.markdown("""
+        **About These Predictions:**
+        These values are synthesized in real-time using a saved **Random Forest Regressor** bundle trained on historical Prague microclimate observations. 
+        
+        **Methodology & Feature Abstraction:**
+        To provide a clean user experience, the control sidebar exposes only the primary meteorological variables. However, the underlying machine learning framework relies on complex spatiotemporal dependencies, including:
+        * **Lagged Features:** Prior 1-hour atmospheric states ($t-1$).
+        * **Rolling Metrics:** 3-hour and 6-hour moving averages for wind vectors ($u, v$) and thermodynamic metrics.
+        * **Precipitation Washout Accumulations:** Trailing 3, 6, 12, and 24-hour rainfall sums.
+        
+        **Simulation Assumptions:**
+        Because a user cannot manually input past conditions, the engine assumes a **quasi-steady state simulation scenario**. Lagged and rolling metrics are dynamically extrapolated as mathematical functions of your active slider inputs.
+        
+        Therefore, these outputs represent **approximate localized atmospheric responses**.
+        """)
 
-    st.caption("Note: These predictions come from the saved trained model bundle and are loaded once per session.")
-
+    ## MAP OF THE AIR STATIONS ----
     st.subheader("Prague Monitoring Network")
     st.markdown("Explore the exact location of the selected monitoring station across our active sensor network.")
 
     lat_col = 'air_lat' if 'air_lat' in df_historical.columns else 'latitude' if 'latitude' in df_historical.columns else 'LAT'
     lon_col = 'air_lon' if 'air_lon' in df_historical.columns else 'longitude' if 'longitude' in df_historical.columns else 'LON'
 
+    # map all stations from the prepared all_stations_df
     all_stations_df = df_historical[["air_station_name", lat_col, lon_col]].dropna().drop_duplicates(subset=["air_station_name"]).copy()
     all_stations_df["is_selected"] = all_stations_df["air_station_name"] == station
     all_stations_df["radius"] = all_stations_df["is_selected"].map(lambda x: 180 if x else 60)
@@ -175,6 +194,7 @@ if current_view == "🔮 Microclimate Simulator":
     center_lat = float(selected_row[lat_col])
     center_lon = float(selected_row[lon_col])
 
+    # adjust the visual 
     view_state = pdk.ViewState(latitude=center_lat, longitude=center_lon, zoom=11.8, pitch=0)
     layer = pdk.Layer(
         "ScatterplotLayer", all_stations_df, pickable=True, opacity=0.8, stroked=True, filled=True,
@@ -186,19 +206,22 @@ if current_view == "🔮 Microclimate Simulator":
     st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=view_state, map_style=pdk.map_styles.CARTO_LIGHT, tooltip={"text": "Station: {air_station_name}"}))
 
 
-# ==============================================================================
-# 📊 VIEW 2: HISTORICAL VISUALIZATIONS & SPATIAL COMPARISON
-# ==============================================================================
+
+# 📊 VIEW 2: HISTORICAL VISUALIZATIONS & SPATIAL COMPARISON ----
 else:
-    # 🧼 CLEAN SIDEBAR ON NAVIGATION EVENT
+    # get rid of the slider for this view
     st.sidebar.markdown("### ℹ️ Navigation info")
     st.sidebar.write("Simulation options are hidden while parsing historical timelines.")
 
     st.header("Historical Air Quality & Weather Analysis")
+
+    # add description
     st.write("Analyze how changing weather conditions interact with city pollution levels over time.")
 
+    ## FIGURE 1: DUAL AXIS CHARTS FOR THE WEATHER AND POLLUTION TIME SERIES ----
     st.subheader("Weather Conditions and Air Pollution Co-movements")
    
+    # define what the user can adjust
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         selected_viz_station = st.selectbox("Filter by Station", options=available_stations, key="viz_station")
@@ -235,6 +258,7 @@ else:
     viz_mask = (df_historical['air_station_name'] == selected_viz_station) & (df_historical['startTime'].dt.date >= start_date) & (df_historical['startTime'].dt.date <= end_date)
     viz_df = df_historical[viz_mask].copy()
 
+    # warning just to be careful
     if viz_df.empty:
         st.warning(f"No historical records found for {selected_viz_station} within the selected window.")
     else:
@@ -280,7 +304,7 @@ else:
         correlation = resampled_viz[pollutant].corr(resampled_viz[selected_weather_col])
         m_col3.metric("Correlation Coefficient (r)", f"{correlation:.2f}" if not np.isnan(correlation) else "N/A")
 
-        # --- SECTION 2: MULTI-STATION COMPARISON PLOT ---
+        # FIGURE 2: MULTI-STATION COMPARISON PLOT ----
         st.write("---")
         st.subheader("Cross-City Neighborhood Comparison")
         comp_col1, comp_col2, comp_col3 = st.columns(3)
@@ -317,7 +341,7 @@ else:
             fig_comp.tight_layout()
             st.pyplot(fig_comp)
 
-        # --- SECTION 3: POLLUTANT WIND ROSE ANALYSIS ---
+        # FIGURE 3: POLLUTANT WIND ROSE ANALYSIS ---
         try:
             from windrose import WindroseAxes
             st.write("---")
@@ -343,5 +367,6 @@ else:
                 ax_rose.set_legend(title=f"{rose_meta['short']} ($\mu g/m^3$)", bbox_to_anchor=(1.15, 0.95))
                 plt.title(f"Pollution Wind Rose: {rose_station}\nWeather Station Profile: {corresponding_weather_station}\n({rose_start} to {rose_end})", fontsize=8, fontweight='bold', pad=25)
                 st.pyplot(fig_rose)
+        # make sure package is installed
         except ImportError:
             st.error("The `windrose` package is not installed. Run `pip install windrose` to enable this feature.")
