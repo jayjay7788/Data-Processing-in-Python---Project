@@ -41,7 +41,7 @@ def prepare_features(data: pd.DataFrame | dict[str, Any], feature_columns: list[
 
     for column in feature_columns:
         if column not in frame.columns:
-            frame[column] = np.nan
+            frame[column] = 0.0
 
     if feature_columns:
         frame = frame[feature_columns]
