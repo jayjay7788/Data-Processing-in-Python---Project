@@ -41,8 +41,13 @@ def run_training_pipeline():
     
     # clean up any missing rows in the training target features
     df_clean = df.dropna(subset=numeric_features + targets)
-    X = df_clean[numeric_features]
-    print("Sample station names in training data:", df["air_station_name"].unique())
+    X_numeric = df_clean[numeric_features] # add numeric features
+     # encode station identities
+    station_dummies = pd.get_dummies(df_clean['air_station_name'], prefix='air_station_name')
+    weather_dummies = pd.get_dummies(df_clean['weather_station_name'], prefix='weather_station_name')
+    X = pd.concat([X_numeric, station_dummies, weather_dummies], axis=1)
+    # capture the exact dummy columns produced
+    categorical_features = station_dummies.columns.tolist() + weather_dummies.columns.tolist()
     trained_models = {}
     
     # train a distinct model for each air pollutant
@@ -53,50 +58,16 @@ def run_training_pipeline():
         # fit the RF model
         model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
         model.fit(X, y)
-        
         trained_models[target] = model
     
     # use the predefined structure from model_wrapper and app_draft to save the model outputs
-    print(f" Saving trained models into bundle...")
     bundle_path = save_model_bundle(
         models=trained_models,
         save_path=model_output_dir,
-        numeric_features=numeric_features
+        numeric_features=numeric_features,
+        categorical_features=categorical_features 
     )
     print(f"Model bundle successfully exported to: {bundle_path}")
 
 if __name__ == "__main__":
     run_training_pipeline()
-
-
-
-# the prediction function
-def predict_pollution(w_speed, temp, hum, pressure, rain, stat):
-    # link it to the bundle
-    bundle = get_model_bundle()
-    
-    # calculate time features to feed the model
-    now = pd.Timestamp.now()
-    hour = now.hour
-    dayofweek = now.dayofweek
-    is_weekend = 1 if dayofweek in [5, 6] else 0
-    month = now.month
-    dayofyear = now.dayofyear
-
-    # map the UI sliders to the column names the models were trained on
-    input_data = pd.DataFrame([
-        {
-            "weather_T": temp,
-            "weather_H": hum,
-            "weather_P": pressure,
-            "weather_F": w_speed,
-            "hour": hour,
-            "dayofweek": dayofweek,
-            "is_weekend": is_weekend,
-            "month": month,
-            "dayofyear": dayofyear
-        }
-    ])
-
-    predictions = predict_bundle(bundle, input_data).iloc[0]
-    return float(predictions.get("air_PM10", 0.0)), float(predictions.get("air_NO2", 0.0)), float(predictions.get("air_NOx", 0.0))
