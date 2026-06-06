@@ -88,9 +88,8 @@ if current_view == "🔮 Microclimate Simulator":
 
     ## PREDICTION FUNCTION ----
     def predict_pollution(w_speed, wind_dir, temp, hum, press, rain_val, stat):
-        # refer to the model bundle
         bundle = get_model_bundle()
-        # preprocess data
+        
         now = pd.Timestamp.now()
         hour = now.hour
         dayofweek = now.dayofweek
@@ -101,41 +100,98 @@ if current_view == "🔮 Microclimate Simulator":
         u_vector = -w_speed * np.sin(radians)
         v_vector = -w_speed * np.cos(radians)
 
-        # define the values that will be used for predictions
+        # pull the last 24 rows for a station to compute engineered values
+        station_history = df_historical[df_historical['air_station_name'] == stat].sort_values('startTime')
+
+        # define functions to safely obtain approximations for the engineered inputs
+        def safe_last(col, n=1):
+            s = station_history[col].dropna()
+            return float(s.iloc[-n]) if len(s) >= n else float(s.mean()) if len(s) > 0 else 0.0
+
+        def safe_mean(col, n=3):
+            s = station_history[col].dropna().tail(n)
+            return float(s.mean()) if len(s) > 0 else 0.0
+
+        # real pressure change over last 6 observations
+        p_series = station_history['weather_P'].dropna().tail(6)
+        p_change6 = float(press - p_series.iloc[0]) if len(p_series) >= 6 else 0.0
+
         payload = {
-            "weather_T": temp, "weather_H": hum, "weather_P": press, "weather_F": w_speed,
-            "wind_u": u_vector, "wind_v": v_vector,
-            "weather_Fmax": w_speed * 1.3, "weather_TMA": temp + 2.0, "weather_TMI": temp - 2.0,
-            "weather_D": wind_dir, "weather_Dprum": wind_dir, "weather_Dmax": (wind_dir + 15) % 360,
-            "wind_u_lag1": u_vector * 0.9, "wind_u_mean3": u_vector * 0.95, "wind_u_mean6": u_vector,
-            "wind_v_lag1": v_vector * 0.9, "wind_v_mean3": v_vector * 0.95, "wind_v_mean6": v_vector,
-            "weather_F_lag1": w_speed * 0.9, "weather_F_mean3": w_speed * 0.95, "weather_F_mean6": w_speed,
-            "weather_T_lag1": temp - 0.5, "weather_T_mean3": temp, "weather_T_mean6": temp + 0.5,
-            "weather_H_lag1": hum, "weather_H_mean3": hum, "weather_H_mean6": hum,
-            "weather_P_lag1": press, "weather_P_mean3": press, "weather_P_mean6": press,
-            "weather_P_change6": -0.5 if w_speed > 5 else 0.0,
-            "weather_SRA10M": rain_val, "precip_sum3": rain_val, "precip_sum6": rain_val,
-            "precip_sum12": rain_val, "precip_sum24": rain_val,
-            "hour": hour, "dayofweek": dayofweek, "is_weekend": is_weekend, "month": month, "dayofyear": dayofyear,
+            # current inputs from sliders
+            "weather_T": temp,
+            "weather_H": hum,
+            "weather_P": press,
+            "weather_F": w_speed,
+            "wind_u": u_vector,
+            "wind_v": v_vector,
+
+            # approximated derived values
+            "weather_Fmax": w_speed * 1.3,
+            "weather_TMA": temp + 2.0,
+            "weather_TMI": temp - 2.0,
+            "weather_D": wind_dir,
+            "weather_Dprum": wind_dir,
+            "weather_Dmax": (wind_dir + 15) % 360,
+            "weather_SRA10M": rain_val,
+
+            # lag features — grounded in real historical values for this station
+            "weather_F_lag1":  safe_last("weather_F"),
+            "weather_F_mean3": safe_mean("weather_F", 3),
+            "weather_F_mean6": safe_mean("weather_F", 6),
+
+            "wind_u_lag1":  safe_last("wind_u") if "wind_u" in station_history.columns else u_vector,
+            "wind_u_mean3": safe_mean("wind_u", 3) if "wind_u" in station_history.columns else u_vector,
+            "wind_u_mean6": safe_mean("wind_u", 6) if "wind_u" in station_history.columns else u_vector,
+
+            "wind_v_lag1":  safe_last("wind_v") if "wind_v" in station_history.columns else v_vector,
+            "wind_v_mean3": safe_mean("wind_v", 3) if "wind_v" in station_history.columns else v_vector,
+            "wind_v_mean6": safe_mean("wind_v", 6) if "wind_v" in station_history.columns else v_vector,
+
+            "weather_T_lag1":  safe_last("weather_T"),
+            "weather_T_mean3": safe_mean("weather_T", 3),
+            "weather_T_mean6": safe_mean("weather_T", 6),
+
+            "weather_H_lag1":  safe_last("weather_H"),
+            "weather_H_mean3": safe_mean("weather_H", 3),
+            "weather_H_mean6": safe_mean("weather_H", 6),
+
+            "weather_P_lag1":  safe_last("weather_P"),
+            "weather_P_mean3": safe_mean("weather_P", 3),
+            "weather_P_mean6": safe_mean("weather_P", 6),
+            "weather_P_change6": p_change6,
+
+            # precipitation accumulations from real history
+            "precip_sum3":  safe_mean("weather_SRA10M", 3)  * 3,
+            "precip_sum6":  safe_mean("weather_SRA10M", 6)  * 6,
+            "precip_sum12": safe_mean("weather_SRA10M", 12) * 12,
+            "precip_sum24": safe_mean("weather_SRA10M", 24) * 24,
+
+            # time features
+            "hour": hour,
+            "dayofweek": dayofweek,
+            "is_weekend": is_weekend,
+            "month": month,
+            "dayofyear": dayofyear,
             "distance_km": 1.2
         }
 
+        # guard against empty station match 
         matched_rows = df_historical[df_historical['air_station_name'] == stat]
+        if matched_rows.empty:
+            st.error(f"No historical data found for station: {stat}")
+            st.stop()
         actual_weather_station = matched_rows['weather_station_name'].iloc[0]
-        expected_features = bundle.get("numeric_features", []) + bundle.get("categorical_features", [])
 
+        expected_features = bundle.get("numeric_features", []) + bundle.get("categorical_features", [])
         for feature in expected_features:
             if feature.startswith("air_station_name_"):
-                station_name_in_bundle = feature.replace("air_station_name_", "")
-                payload[feature] = 1.0 if station_name_in_bundle == stat else 0.0
+                payload[feature] = 1.0 if feature.replace("air_station_name_", "") == stat else 0.0
             elif feature.startswith("weather_station_name_"):
-                w_station_name_in_bundle = feature.replace("weather_station_name_", "")
-                payload[feature] = 1.0 if w_station_name_in_bundle == actual_weather_station else 0.0
+                payload[feature] = 1.0 if feature.replace("weather_station_name_", "") == actual_weather_station else 0.0
 
         input_data = pd.DataFrame([payload])
         predictions = predict_bundle(bundle, input_data).iloc[0]
-        
-        # return predictions
+
         return float(predictions.get("air_PM10", 0.0)), float(predictions.get("air_NO2", 0.0)), float(predictions.get("air_NOx", 0.0))
 
     pred_pm10, pred_no2, pred_nox = predict_pollution(wind_speed, wind_direction, temperature, humidity, pressure, rain, station)
@@ -207,7 +263,7 @@ if current_view == "🔮 Microclimate Simulator":
 
 
 
-# 📊 VIEW 2: HISTORICAL VISUALIZATIONS & SPATIAL COMPARISON ----
+# VIEW 2: HISTORICAL VISUALIZATIONS & SPATIAL COMPARISON ----
 else:
     # get rid of the slider for this view
     st.sidebar.markdown("### ℹ️ Navigation info")
