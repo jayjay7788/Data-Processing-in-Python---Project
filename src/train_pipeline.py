@@ -56,7 +56,7 @@ def run_training_pipeline():
         y = df_clean[target]
         
         # fit the RF model
-        model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
+        model = RandomForestRegressor(n_estimators=100, max_depth=15, min_samples_leaf=5, random_state=42, n_jobs=-1)
         model.fit(X, y)
         trained_models[target] = model
     

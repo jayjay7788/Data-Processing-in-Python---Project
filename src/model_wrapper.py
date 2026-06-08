@@ -26,7 +26,7 @@ def save_model_bundle(
         "targets": list(models.keys()),
     }
     bundle_path = save_dir / BUNDLE_NAME
-    joblib.dump(bundle, bundle_path)
+    joblib.dump(bundle, bundle_path, compress=3)
     return bundle_path
 
 

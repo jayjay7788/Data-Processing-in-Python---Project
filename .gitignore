@@ -211,6 +211,4 @@ __marimo__/
 data/raw/*
 !data/raw/.gitkeep
 
-# saved models results
-*.joblib
 
