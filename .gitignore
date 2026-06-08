@@ -208,12 +208,10 @@ marimo/_lsp/
 __marimo__/
 
 # data folder
-data/*
-
+data/raw/*
 !data/raw/.gitkeep
-!data/processed/
 
 # saved models results
-results/models/
-
+results/models/*
+*.joblib
 !results/models/.gitkeep
