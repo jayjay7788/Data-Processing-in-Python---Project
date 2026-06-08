@@ -210,5 +210,10 @@ __marimo__/
 # data folder
 data/*
 
-!data/.gitkeep
+!data/raw/.gitkeep
 !data/processed/
+
+# saved models results
+results/models/
+
+!results/models/.gitkeep
