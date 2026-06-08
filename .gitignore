@@ -212,6 +212,5 @@ data/raw/*
 !data/raw/.gitkeep
 
 # saved models results
-results/models/*
 *.joblib
-!results/models/.gitkeep
+
