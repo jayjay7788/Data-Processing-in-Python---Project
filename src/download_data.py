@@ -91,7 +91,8 @@ def write_dict_csv(d: dict, path: Path):
         writer.writerow(["key", "value"])
         writer.writerows(d.items())
 
-def build_var_dict(data_raw_path):
+def build_vars_dict(data_raw_path=RAW_DIR):
+    data_raw_path = Path(data_raw_path)
     df_chmi_vars = pd.read_csv(RAW_DIR / "chmi_weather_variables_metadata.csv")
     chmi_vars_dict = dict(
         zip(df_chmi_vars["EG_EL_ABBREVIATION"].astype(str),
@@ -202,9 +203,10 @@ def build_and_save_air_stations_dict(
         print(f"Metadata file not found: {metadata_csv}")
         return {}
     
-    df = df[["station_code", "locality_name"]].drop_duplicates()
+    df = df[["id_registration", "locality_name"]].drop_duplicates()
+    df["id_registration"] = df["id_registration"].astype(str)
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
-    ids_dict = dict(zip(df["station_code"], df["locality_name"]))
+    ids_dict = dict(zip(df["id_registration"], df["locality_name"]))
     return ids_dict
     
 
@@ -219,7 +221,8 @@ def download_airquality_data(
 
     try:
         df_ids = pd.read_csv(ids_csv, encoding="utf-8-sig")
-        ids_to_keep = df_ids["station_code"].tolist()
+        df_ids["id_registration"] = df_ids["id_registration"].astype(str)
+        ids_to_keep = df_ids["id_registration"].tolist()
         print(f"Loaded {len(ids_to_keep)} station IDs from {ids_csv.name} for filtering.")
     except FileNotFoundError:
         print(f"Warning: {ids_csv} not found. Proceeding without ID filtering.")
@@ -256,6 +259,7 @@ def download_airquality_data(
 
         df_part = pd.read_csv(io.StringIO(resp.text))
         if ids_to_keep is not None:
+            df_part["idRegistration"] = df_part["idRegistration"].astype(str)
             df_part = df_part[df_part["idRegistration"].isin(ids_to_keep)].copy()
         if df_part.empty:
             continue
@@ -273,13 +277,16 @@ def download_airquality_data(
 
 
 def main():
+    print("Downloading Weather Metadata...")
     download_chmi_weather_stations_metadata()
     download_chmi_weather_variables_metadata()
+    build_vars_dict()
     build_and_save_wsi_dict()
 
     print("Downloading Weather Data (2025)...")
     download_chmi_weather_data()
     
+    print("Downloading Air Quality Metadata...")
     download_airquality_metadata()
     build_and_save_air_stations_dict()
 

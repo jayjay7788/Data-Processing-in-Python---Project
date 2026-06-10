@@ -501,7 +501,7 @@ def main():
 
     # aggregate weather
     df_weather_hourly = aggregate_weather_10min_to_hourly(data_raw_path)
-    df_weather_ext = load_and_merge_weather_station_metadata(df_weather_hourly, data_raw_path)
+    df_weather_ext = load_and_merge_weather_station_metadata(df_weather_hourly, weather_stations_meta)
 
     # load air quality and station metadata
     air_stations_meta = load_air_quality_meta(data_raw_path)
