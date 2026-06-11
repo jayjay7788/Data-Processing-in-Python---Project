@@ -416,13 +416,15 @@ else:
 
             if not rose_df.empty:
                 corresponding_weather_station = rose_df["weather_station_name"].iloc[0]
-                fig_rose = plt.figure(figsize=(7, 7))
+                fig_rose = plt.figure(figsize=(5, 5))
                 ax_rose = WindroseAxes.from_ax(fig=fig_rose)
                 ax_rose.bar(rose_df['weather_Dprum'], rose_df[rose_pollutant], normed=True, opening=0.85, edgecolor='white', cmap=cm.YlOrRd, nsector=16)
                 rose_meta = POLLUTANT_MAP[rose_pollutant]
-                ax_rose.set_legend(title=f"{rose_meta['short']} ($\mu g/m^3$)", bbox_to_anchor=(1.15, 0.95))
+                ax_rose.set_legend(title=f"{rose_meta['short']} ($\mu g/m^3$)", bbox_to_anchor=(1.15, 0.8))
                 plt.title(f"Pollution Wind Rose: {rose_station}\nWeather Station Profile: {corresponding_weather_station}\n({rose_start} to {rose_end})", fontsize=8, fontweight='bold', pad=25)
-                st.pyplot(fig_rose)
+                col1, col2, col3 = st.columns([1,4,1])
+                with col2:
+                    st.pyplot(fig_rose)
         # make sure package is installed
         except ImportError:
             st.error("The `windrose` package is not installed. Run `pip install windrose` to enable this feature.")
