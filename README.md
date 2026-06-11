@@ -50,15 +50,22 @@ A self-contained notebook delivering additional graphical analysis of temporal a
 
 ```
 ├── data/
+│   ├── raw/  
 │   └── processed/
 │       └── processed_data.csv       # Cleaned, aggregated, and synchronised dataset
+├── docs                             # Miscellaneous supplementary materials
+├── notebooks                        # Notebooks that were used during drafting the code
+│   ├── 01_Final_Analysis.ipynb      # Exploratory data analysis notebook          
+│   └── other
 ├── results/
-│   └── models/                      # Saved Random Forest model bundle (binary files)
+│   └── models/                      # Saved Random Forest model bundle
 ├── src/
-│   ├── app.py                       # Streamlit web application
-│   └── model_wrapper.py             # Inference pipeline and feature mapping engine
-├── notebook.ipynb                   # Exploratory data analysis notebook
-├── run_pipeline.py                  # Data processing and model training pipeline
+│   ├── data_processing.py
+│   ├── download_data.py
+│   ├── model_wrapper.py             
+│   └── train_pipeline.py
+├── app.py                           # Streamlit web application
+├── run_pipeline.py                  # Data download, processing and model training pipeline
 ├── README.md
 └── requirements.txt
 ```
@@ -88,12 +95,12 @@ pip install -r requirements.txt
 python run_pipeline.py
 ```
 
-This script processes the raw data and trains the Random Forest model. Outputs are saved to `data/processed/` and `results/models/`.
+This script downloads and processes the raw data and trains the Random Forest model. Outputs are saved to `data/processed/` and `results/models/`. Preprocessed data and pretrained model results are provided for easier usage. Beware that the data download might take up to 1 hour due to slow download of air quality data (the server is sometimes unstable and the data are not provided in ideal format). You can select to skip all the steps in the pipeline and reuse prepared data and model results. 
 
 ### Launch the Streamlit application
 
 ```bash
-streamlit run src/app.py
+streamlit run app.py
 ```
 
 Open the URL shown in the terminal (typically `http://localhost:8501`) in your browser.
@@ -101,7 +108,7 @@ Open the URL shown in the terminal (typically `http://localhost:8501`) in your b
 ### Open the exploratory notebook
 
 ```bash
-jupyter notebook notebook.ipynb
+jupyter notebook notebooks/01_Final_Analysis.ipynb
 ```
 
 ---
@@ -110,7 +117,7 @@ jupyter notebook notebook.ipynb
 
 Data were sourced from the **Czech Hydrometeorological Institute (CHMI)** via their public API. The dataset covers air quality measurements (PM2.5, PM10, NO₂, O₃, and others) and meteorological readings (temperature, humidity, wind speed/direction, pressure, precipitation) from stations located across Prague.
 
-The processed dataset (`data/processed/processed_data.csv`) is the cleaned, aggregated, and time-synchronised version used for all analysis and model training.
+The processed dataset (`data/processed/processed_data.csv`) is the cleaned and aggregated version used for all analysis and model training.
 
 ---
 
