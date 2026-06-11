@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import pydeck as pdk
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[1] #need to be changed when movinf to root directly to parent only
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 

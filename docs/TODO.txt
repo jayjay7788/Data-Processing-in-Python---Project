@@ -78,3 +78,8 @@ Additional tasks:
 - inspect more the relevant literature and collect references for observed relationships between atmpospherical conditions and pollution levels
 
 - clean the notebooks and keep only needed cells
+
+
+
+
+C:\Users\jachy\anaconda3\envs\python_data_course\python.exe -m streamlit run app.py
