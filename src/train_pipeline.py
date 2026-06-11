@@ -69,5 +69,10 @@ def run_training_pipeline():
     )
     print(f"Model bundle successfully exported to: {bundle_path}")
 
-if __name__ == "__main__":
+def main():
+    print("Initiating Model Training...")
     run_training_pipeline()
+    print("Model Training Finished!")
+
+if __name__ == "__main__":
+    main()

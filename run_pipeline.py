@@ -35,7 +35,7 @@ def run_all():
         print("Skipping training. (Using existing compressed model bundle)")
 
     print("Pipeline Complete!")
-    print("👉 You can now launch your dashboard by typing: streamlit run app.py")
+    print("You can now launch your dashboard by typing: streamlit run app.py")
     print("--------------------------------------------------")
 
 if __name__ == "__main__":
