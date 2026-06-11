@@ -50,16 +50,16 @@ A self-contained notebook delivering additional graphical analysis of temporal a
 
 ```
 ├── data/
-│   ├── raw/  
+│   ├── raw/                         # Ignored by git; downloaded optionally via pipeline
 │   └── processed/
 │       └── processed_data.csv       # Cleaned, aggregated, and synchronised dataset
 ├── docs                             # Miscellaneous supplementary materials
-├── notebooks                        # Notebooks that were used during drafting the code
-│   ├── drafts/      
+├── notebooks                        
+│   ├── drafts/                      # Experimental code and drafts of functions
 │   └── final_analysis.ipynb         # Exploratory data analysis notebook
 ├── results/
 │   └── models/                      # Saved Random Forest model bundle
-├── src/
+├── src/                             # Core Python modules
 │   ├── data_processing.py
 │   ├── download_data.py
 │   ├── model_wrapper.py             
@@ -126,4 +126,4 @@ The processed dataset (`data/processed/processed_data.csv`) is the cleaned and a
 This project was submitted as a final assignment for the *Data Processing in Python* course at the Institute of Economic Studies, Charles University.
 
 **Generative AI Use Statement:**
-Generative AI was used in this project for troubleshooting, idea refinement, and grammar checks in accordance with course guidelines. The project topic, analytical approach, data pipeline design, and application structure were conceived and planned entirely by the authors. AI tools were also consulted during implementation to help translate our own designs into working code in cases where we understood the intended logic but needed assistance with syntax or library-specific implementation details.
+Generative AI (ChatGPT, Gemini, GitHub Copilot) was used in this project for troubleshooting, idea refinement, and grammar checks in accordance with course guidelines. The project topic, analytical approach, data pipeline design, and application structure were conceived and planned entirely by the authors. AI tools were also consulted during implementation to help translate our own designs into working code in cases where we understood the intended logic but needed assistance with syntax or library-specific implementation details. We have reviewed the final code and take full responsibility for its accuracy and functionality.
