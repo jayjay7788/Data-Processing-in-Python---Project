@@ -55,8 +55,8 @@ A self-contained notebook delivering additional graphical analysis of temporal a
 │       └── processed_data.csv       # Cleaned, aggregated, and synchronised dataset
 ├── docs                             # Miscellaneous supplementary materials
 ├── notebooks                        # Notebooks that were used during drafting the code
-│   ├── 01_Final_Analysis.ipynb      # Exploratory data analysis notebook          
-│   └── other
+│   ├── drafts/      
+│   └── final_analysis.ipynb         # Exploratory data analysis notebook
 ├── results/
 │   └── models/                      # Saved Random Forest model bundle
 ├── src/
