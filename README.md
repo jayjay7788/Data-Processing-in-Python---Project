@@ -6,6 +6,11 @@ This project examines air quality patterns in Prague and links them to environme
 
 The analysis is delivered in two components: an interactive Streamlit web application and a supplementary Jupyter notebook.
 
+## Authors 
+
+- **[Jáchym Líva](https://github.com/jayjay7788)** 
+- **[Markéta Ondřejová](https://github.com/marketaondrejova)** 
+
 ---
 
 ## Table of Contents
