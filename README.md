@@ -47,7 +47,7 @@ The project investigates spatio-temporal patterns of urban air pollution in Prag
 
 ### 3. Jupyter Notebook — Exploratory Analysis
 
-A self-contained notebook delivering additional graphical analysis of temporal and spatial patterns in air quality and weather, including station-level summaries and pollutant co-movement plots.
+A self-contained notebook delivering additional graphical analysis of temporal and spatial patterns in air quality and weather, including station-level summaries and pollutant co-movement plots. We include both original jupyter notebook and its HTML export to keep it intact and directly accesible. 
 
 ---
 
@@ -61,7 +61,8 @@ A self-contained notebook delivering additional graphical analysis of temporal a
 ├── docs                             # Miscellaneous supplementary materials
 ├── notebooks                        
 │   ├── drafts/                      # Experimental code and drafts of functions
-│   └── final_analysis.ipynb         # Exploratory data analysis notebook
+│   ├── final_analysis.html          # Exploratory data analysis notebook in html format
+│   └── final_analysis.ipynb         # Original jupyter exploratory data analysis notebook
 ├── results/
 │   └── models/                      # Saved Random Forest model bundle
 ├── src/                             # Core Python modules
@@ -100,7 +101,9 @@ pip install -r requirements.txt
 python run_pipeline.py
 ```
 
-This script downloads and processes the raw data and trains the Random Forest model. Outputs are saved to `data/processed/` and `results/models/`. Preprocessed data and pretrained model results are provided for easier usage. Beware that the data download might take up to 1 hour due to slow download of air quality data (the server is sometimes unstable and the data are not provided in ideal format). You can select to skip all the steps in the pipeline and reuse prepared data and model results. 
+This script downloads and processes the raw data and trains the Random Forest model. Outputs are saved to `data/processed/` and `results/models/`. You can select to skip all the steps in the pipeline and reuse prepared data and model results, saved in respective folders. Downloaded, preprocessed data and pretrained model files are already provided in the repository for immediate usage.  
+
+Note: If you choose to run the data download, it may take up to 1 hour due to the slow speed of the air quality API. Additionally, you may experience timeout errors when downloading a handful of air quality files due to long and unstable server responses. This should not considerably affect the final dataset, and you can safely proceed even if a few files fail to download.
 
 ### Launch the Streamlit application
 
@@ -113,14 +116,15 @@ Open the URL shown in the terminal (typically `http://localhost:8501`) in your b
 ### Open the exploratory notebook
 
 ```bash
-jupyter notebook notebooks/01_Final_Analysis.ipynb
+jupyter notebook notebooks/final_analysis.ipynb
 ```
+alternatively, you can open the respective final_analysis.html file directly in your web browser without running jupyter.
 
 ---
 
 ## Data
 
-Data were sourced from the **Czech Hydrometeorological Institute (CHMI)** via their public API. The dataset covers air quality measurements (PM2.5, PM10, NO₂, O₃, and others) and meteorological readings (temperature, humidity, wind speed/direction, pressure, precipitation) from stations located across Prague.
+Data were sourced from the **Czech Hydrometeorological Institute (CHMI)** via their public API. The dataset covers air quality measurements (PM10, NO2, NOx and others) and meteorological readings (temperature, humidity, wind speed/direction, pressure, precipitation) from air and weather stations located across Prague.
 
 The processed dataset (`data/processed/processed_data.csv`) is the cleaned and aggregated version used for all analysis and model training.
 
